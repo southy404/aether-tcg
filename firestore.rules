@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['gold', 'xp', 'wins', 'losses', 'gamesPlayed', 'inventory']));
+    }
+
+    match /friendRequests/{requestId} {
+      allow read: if isSignedIn() && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.fromId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.toId == request.auth.uid || resource.data.fromId == request.auth.uid);
+      allow delete: if isSignedIn() && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
+    }
+
+    match /friendships/{friendshipId} {
+      // Access based on the users array in the document
+      allow read: if isSignedIn() && (request.auth.uid in resource.data.users);
+      allow create: if isSignedIn() && (request.auth.uid in request.resource.data.users);
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.users);
+      allow delete: if isSignedIn() && (request.auth.uid in resource.data.users);
+
+      match /messages/{messageId} {
+        // Optimized check: Since we use UID1_UID2 as friendshipId, we can verify access 
+        // by checking if the current auth.uid is part of the document name.
+        // This is more reliable and faster than cross-document get() calls.
+        allow read, write: if isSignedIn() && 
+          (friendshipId.split('_')[0] == request.auth.uid || friendshipId.split('_')[1] == request.auth.uid);
+      }
+    }
+
+    match /marketListings/{listingId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /rooms/{roomId} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

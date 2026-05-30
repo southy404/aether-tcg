@@ -1,0 +1,81 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a player's profile, including their identity and in-game currencies.",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "gold": { "type": "number" },
+        "gems": { "type": "number" },
+        "xp": { "type": "number" },
+        "inventory": { "type": "array", "items": { "type": "number" } },
+        "ownedCosmetics": { "type": "array", "items": { "type": "string" } },
+        "equippedCosmetics": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "username", "gold", "gems"]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fromId": { "type": "string" },
+        "fromName": { "type": "string" },
+        "toId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromId", "toId", "status", "createdAt"]
+    },
+    "Friendship": {
+      "title": "Friendship",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "users": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["users", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "text", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "google"]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": { "entityName": "UserProfile", "description": "User profiles and player data." }
+      },
+      {
+        "path": "/friendRequests/{requestId}",
+        "definition": { "entityName": "FriendRequest", "description": "Pending and historical friend requests." }
+      },
+      {
+        "path": "/friendships/{friendshipId}",
+        "definition": { "entityName": "Friendship", "description": "Active friendships between users." }
+      },
+      {
+        "path": "/friendships/{friendshipId}/messages/{messageId}",
+        "definition": { "entityName": "ChatMessage", "description": "Private messages within a friendship." }
+      }
+    ]
+  }
+}

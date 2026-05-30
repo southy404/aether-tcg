@@ -1,0 +1,88 @@
+{
+  "placeholderImages": [
+    {
+      "id": "card-1",
+      "description": "Inferno Drake card",
+      "imageUrl": "https://images.unsplash.com/photo-1746793473825-e09194ad142e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxkcmFnb24lMjBmaXJlfGVufDB8fHx8MTc2Nzc3NzIwOHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "dragon fire"
+    },
+    {
+      "id": "card-2",
+      "description": "Iron Guard card",
+      "imageUrl": "https://images.unsplash.com/photo-1557524676-fb4323e6bdcb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxrbmlnaHQlMjBhcm1vcnxlbnwwfHx8fDE3Njc3NTk0Mjh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "knight armor"
+    },
+    {
+      "id": "card-3",
+      "description": "Celestial Mage card",
+      "imageUrl": "https://images.unsplash.com/photo-1609750340486-b0063919c5bd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxzdGFyJTIwd2l6YXJkfGVufDB8fHx8MTc2NzcxNTY2MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "star wizard"
+    },
+    {
+      "id": "card-4",
+      "description": "Void Creeper card",
+      "imageUrl": "https://images.unsplash.com/photo-1664548726466-926d0ebea808?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzaGFkb3clMjBtb25zdGVyfGVufDB8fHx8MTc2Nzc1NjcwOXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "shadow monster"
+    },
+    {
+      "id": "card-5",
+      "description": "Tidal Serpent card",
+      "imageUrl": "https://images.unsplash.com/photo-1710348586462-58659947dcc4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxzZWElMjBzZXJwZW50fGVufDB8fHx8MTc2NzgyNTY2N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sea serpent"
+    },
+    {
+      "id": "card-6",
+      "description": "Stone Golem card",
+      "imageUrl": "https://images.unsplash.com/photo-1699035392947-fa5757851093?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyb2NrJTIwZ29sZW18ZW58MHx8fHwxNzY3ODI1NjY4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "rock golem"
+    },
+    {
+      "id": "card-10",
+      "description": "Fireball card",
+      "imageUrl": "https://images.unsplash.com/photo-1735592936173-d8afbedea1d0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxmaXJlYmFsbCUyMGV4cGxvc2lvbnxlbnwwfHx8fDE3Njc3MzUwNzd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "fireball explosion"
+    },
+    {
+      "id": "card-11",
+      "description": "Dimensional Rift card",
+      "imageUrl": "https://images.unsplash.com/photo-1765703315812-0302bdefbe83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxnYWxheHklMjB2b3J0ZXh8ZW58MHx8fHwxNzY3Nzc3MjA4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "galaxy vortex"
+    },
+    {
+      "id": "card-12",
+      "description": "Holy Light card",
+      "imageUrl": "https://images.unsplash.com/photo-1674244988698-0bfc39dad0d0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzdW4lMjBiZWFtfGVufDB8fHx8MTc2NzgyNTY2N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sun beam"
+    },
+    {
+      "id": "card-13",
+      "description": "Tsunami card",
+      "imageUrl": "https://images.unsplash.com/photo-1619233651146-7364c945c3ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxvY2VhbiUyMHdhdmV8ZW58MHx8fHwxNzY3NzgxOTM5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "ocean wave"
+    },
+    {
+      "id": "card-20",
+      "description": "Bear Trap card",
+      "imageUrl": "https://images.unsplash.com/photo-1708170105898-b9901481638e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxtZXRhbCUyMHRyYXB8ZW58MHx8fHwxNzY3ODI1NjY3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "metal trap"
+    },
+    {
+      "id": "card-21",
+      "description": "Mana Drain card",
+      "imageUrl": "https://images.unsplash.com/photo-1739164308282-d4afd31a0425?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxtYWdpYyUyMHNpcGhvbnxlbnwwfHx8fDE3Njc4MjU2Njd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "magic siphon"
+    },
+    {
+      "id": "card-30",
+      "description": "Solar Core card",
+      "imageUrl": "https://images.unsplash.com/photo-1749665833377-dc36f1be8130?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxnbG93aW5nJTIwc3VufGVufDB8fHx8MTc2NzgyNTY2OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "glowing sun"
+    },
+    {
+      "id": "card-31",
+      "description": "Fire Crystal card",
+      "imageUrl": "https://images.unsplash.com/photo-1551122102-63cd339bfaab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxyZWQlMjBjcnlzdGFsfGVufDB8fHx8MTc2NzgyNTY2OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "red crystal"
+    }
+  ]
+}

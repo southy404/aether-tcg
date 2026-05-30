@@ -1,0 +1,38 @@
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of D:\package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * D:\aether-tcg\package-lock.json
+
+Image with src "/card-back-logo.jpg?v=2" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns
+Image with src "/logo.png?v=2" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns
+Image with src "/logo-icon.png?v=2" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns
+Image with src "/logo.png?v=2" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns
+ ⨯ Error: Cannot find module './586.js'
+Require stack:
+- D:\aether-tcg\.next\server\webpack-runtime.js
+- D:\aether-tcg\.next\server\app\sets\page.js
+- D:\aether-tcg\node_modules\next\dist\server\require.js
+- D:\aether-tcg\node_modules\next\dist\server\load-components.js
+- D:\aether-tcg\node_modules\next\dist\build\utils.js
+- D:\aether-tcg\node_modules\next\dist\build\swc\options.js
+- D:\aether-tcg\node_modules\next\dist\build\swc\index.js
+- D:\aether-tcg\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- D:\aether-tcg\node_modules\next\dist\server\config.js
+- D:\aether-tcg\node_modules\next\dist\server\next.js
+- D:\aether-tcg\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (D:\aether-tcg\.next\server\app\game\page.js:2:18633)
+    at Object.<anonymous> (D:\aether-tcg\.next\server\app\game\page.js:2:18687) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/game'
+}
+Image with src "/logo-icon.png?v=2" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns
+Image with src "/logo.png?v=2" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns
