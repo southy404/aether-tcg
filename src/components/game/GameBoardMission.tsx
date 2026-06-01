@@ -100,6 +100,12 @@ const typeGradientClass: Record<CardType, string> = {
 };
 
 export const DetailedCard = ({ card, onVideoEnd, onOvercharge }: { card: InspectedCard, onVideoEnd?: () => void, onOvercharge?: (card: InspectedCard) => void }) => {
+    // Localize the card for the campaign-mode preview just like the regular GameBoard does —
+    // otherwise the fullscreen card flashed during spell/aether/trap animations still shows
+    // the raw German name/text even when the player picked English or Spanish.
+    const { localizeCard, cardType, element } = useI18n();
+    const localizedCard = localizeCard(card as GameCard);
+
     const costBadgeColorClass = {
         Unit: 'bg-red-600',
         Spell: 'bg-blue-600',
@@ -111,7 +117,7 @@ export const DetailedCard = ({ card, onVideoEnd, onOvercharge }: { card: Inspect
     const isAnimation = card.instanceId.startsWith('attack-anim') || card.instanceId.startsWith('play-anim') || card.instanceId.startsWith('trap-anim');
     const showVideo = card.previewVideoUrl && isAnimation;
     const videoRef = useRef<HTMLVideoElement>(null);
-    
+
     const displayAtk = card.currentAtk !== undefined ? card.currentAtk : card.atk;
     const displayHp = card.currentHp !== undefined ? card.currentHp : card.hp;
     const displayFokus = card.currentFokus !== undefined ? card.currentFokus : card.fokus;
@@ -135,18 +141,18 @@ export const DetailedCard = ({ card, onVideoEnd, onOvercharge }: { card: Inspect
             data-ai-hint={card.img_hint}
         >
              <div className='relative w-full h-full rounded-xl overflow-hidden z-0'>
-                <Image src={card.img!} alt={card.name!} fill className="object-cover" sizes="(max-width: 768px) 300px, 400px"/>
+                <Image src={card.img!} alt={localizedCard.name!} fill className="object-cover" sizes="(max-width: 768px) 300px, 400px"/>
             </div>
 
             {card.overlay_img && (
                 <div className={cn("absolute inset-0 z-20 pointer-events-none animate-gentle-pulse", isAnimation ? "" : "blur-sm")}>
-                    <Image src={card.overlay_img} alt={`${card.name} overlay`} fill className="object-cover" />
+                    <Image src={card.overlay_img} alt={`${localizedCard.name} overlay`} fill className="object-cover" />
                 </div>
             )}
 
             {card.default_img && (
                  <div className="absolute inset-0 z-30 pointer-events-none">
-                    <Image src={card.default_img} alt={`${card.name} default`} fill className="object-cover" />
+                    <Image src={card.default_img} alt={`${localizedCard.name} default`} fill className="object-cover" />
                 </div>
             )}
             
@@ -189,20 +195,20 @@ export const DetailedCard = ({ card, onVideoEnd, onOvercharge }: { card: Inspect
                        )}></div>
                     <div className="relative flex items-center h-12 z-10">
                         <div className="px-4 leading-tight">
-                            <h3 
+                            <h3
                                 className={cn(
-                                    "text-xl uppercase tracking-wider", 
+                                    "text-xl uppercase tracking-wider",
                                     card.rarity === 'GOD' ? "text-holo-gold font-black" :
-                                    card.rarity === 'Legendary' ? "text-holo-gold font-black" : 
+                                    card.rarity === 'Legendary' ? "text-holo-gold font-black" :
                                     card.rarity === 'Epic' ? "text-holo-silver font-bold" : "text-white font-bold"
                                 )}
-                                data-text={card.name}
+                                data-text={localizedCard.name}
                             >
-                                {card.name}
+                                {localizedCard.name}
                             </h3>
                             <p className="text-sm font-semibold text-gray-300 mt-0.5">
-                                {card.type}
-                                {card.type !== 'Aether' && ` | ${card.element}`}
+                                {cardType(card.type!)}
+                                {card.type !== 'Aether' && ` | ${element(card.element!)}`}
                             </p>
                         </div>
                     </div>
@@ -217,7 +223,7 @@ export const DetailedCard = ({ card, onVideoEnd, onOvercharge }: { card: Inspect
                          {card.keywords?.overcharge && !onOvercharge && (
                             <span className="font-bold text-orange-400">[OVERCHARGE] </span>
                          )}
-                        {parseDescription(card.text!)}
+                        {parseDescription(localizedCard.text!)}
                     </div>
                 </div>
                 <div className="px-4 z-40 mt-2">
@@ -2333,7 +2339,12 @@ export default function GameBoardMission({ playerDeck, mission, startingPlayer, 
             )}
             <div className="flex gap-4 mt-8">
               <Button onClick={onReset} variant="outline">{t('newGame')}</Button>
-               <Link href="/game" className={cn(buttonVariants({variant: 'tcg'}))}>
+              {winner === 'player' && (
+                <Link href="/play/campaign" className={cn(buttonVariants({variant: 'tcg'}))}>
+                  {t('backToCampaign')}
+                </Link>
+              )}
+              <Link href="/game" className={cn(buttonVariants({variant: winner === 'player' ? 'outline' : 'tcg'}))}>
                 {t('mainMenu')}
               </Link>
             </div>

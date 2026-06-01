@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/AppContext';
-import { Volume2, VolumeX, User, Settings, LogOut, Maximize, Minimize, LogIn, Sparkles, Users } from 'lucide-react';
+import { Volume2, VolumeX, User, Settings, LogOut, Maximize, Minimize, LogIn, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -71,28 +71,15 @@ export default function Header() {
   const equippedFrame = cosmeticItems.frames.find(f => f.id === equippedCosmetics.frame) as (FrameItem & { glowColor?: string; shine?: boolean; });
 
   return (
-    <nav className="sticky top-0 z-[100] flex h-[80px] items-center justify-between border-b border-border/50 bg-background/80 px-4 py-2 backdrop-blur-sm md:px-6">
+    <nav className="sticky top-0 z-[100] flex h-[80px] items-center justify-between border-b border-border/30 bg-background/40 px-4 py-2 backdrop-blur-md md:px-6">
       <Link href="/game" className="transition-transform hover:scale-105">
         <Image src="/logo-icon.png?v=2" alt="AETHER" width={50} height={50} className="h-[50px] w-auto animate-spin-slow" />
       </Link>
       <div className="flex items-center gap-4 text-lg font-semibold text-primary md:gap-6">
-        <Button variant="ghost" size="icon" onClick={handleMuteToggle} className="text-muted-foreground hover:text-primary">
-            {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-        </Button>
-        <Button variant="ghost" size="icon" onClick={handleFullscreenToggle} className="text-muted-foreground hover:text-primary">
-            {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-        </Button>
-        <LanguageSwitcher />
-        
-        <Link href="/social" className="relative group p-2 rounded-full hover:bg-white/5 transition-colors">
-            <Users className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
-            {hasNotifications && (
-                <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-background animate-pulse" />
-            )}
-        </Link>
-
+        {/* Currency badges sit at the left of the cluster so they read as the most important
+            info, right after the logo. Order goes: Merits → Gold → audio/fullscreen → social → language → avatar. */}
         <Link href="/shop/cosmetics" className="flex items-center gap-2 hover:scale-105 transition-transform">
-          <Sparkles className="h-5 w-5 text-cyan-400" />
+          <Image src="/gem.png" alt="Merits" width={20} height={20} className="h-5 w-5"/>
           <div className="flex flex-col leading-none">
             <span className="text-white text-base">{gems}</span>
             <span className="text-[10px] uppercase text-cyan-400/70 font-bold">Merits</span>
@@ -105,6 +92,25 @@ export default function Header() {
             <span className="text-[10px] uppercase text-yellow-500/70 font-bold">Gold</span>
           </div>
         </Link>
+
+        <Button variant="ghost" size="icon" onClick={handleMuteToggle} className="text-muted-foreground hover:text-primary">
+            {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+        </Button>
+        <Button variant="ghost" size="icon" onClick={handleFullscreenToggle} className="text-muted-foreground hover:text-primary">
+            {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+        </Button>
+
+        {/* Friends/social link moves to where the language switcher used to be, and vice
+            versa — keeps the language picker right next to the avatar where personalisation
+            controls cluster together. */}
+        <Link href="/social" className="relative group p-2 rounded-full hover:bg-white/5 transition-colors">
+            <Users className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+            {hasNotifications && (
+                <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-background animate-pulse" />
+            )}
+        </Link>
+
+        <LanguageSwitcher />
 
         {isOnline ? (
           <DropdownMenu modal={false}>

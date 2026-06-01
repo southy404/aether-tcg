@@ -117,7 +117,7 @@ export const getUnitCost = (unit: GameCard): number => {
 export const applyDamageToPlayer = (draft: GameState, damage: number, playerId: PlayerId, isTutorial?: boolean, onTutorialAction?: (action: string, card?: GameCard) => void, dealerId?: PlayerId) => {
     const player = draft.players[playerId];
     let finalDamage = damage;
-    
+
     const dealerPlayerId = dealerId || (playerId === 'player' ? 'opponent' : 'player');
     const dealer = draft.players[dealerPlayerId];
 
@@ -133,9 +133,20 @@ export const applyDamageToPlayer = (draft: GameState, damage: number, playerId: 
             addLogAndToast(draft, [{type: 'card', cardId: 19, content: 'Deepsea Guardian'}, ` reduziert den Schaden.`], 'effect', playerId);
         }
     }
-    
+
     player.hp -= finalDamage;
     showDamageIndicator(draft, playerId, -finalDamage, isTutorial, onTutorialAction);
+
+    // Lethal-damage check. Previously winner was only set inside resolveCombat / advanceToNextPlayer,
+    // so killing the opponent with a direct-damage spell (Fireburst, Last Spark, …) outside the
+    // combat phase left `winner` null — meaning no victory dialog, no completeMission, no
+    // mission unlock. Set the winner here so any lethal damage immediately ends the game.
+    if (!draft.winner && player.hp <= 0) {
+        player.hp = 0;
+        draft.winner = playerId === 'player' ? 'opponent' : 'player';
+        addLogAndToast(draft, [{type: 'player', playerId: draft.winner}, ` hat das Spiel gewonnen!`], 'info', draft.winner);
+    }
+
     return finalDamage;
 }
 
