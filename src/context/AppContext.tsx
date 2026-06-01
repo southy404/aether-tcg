@@ -117,8 +117,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   // Profile Data States
   const [username, setUsernameState] = useState('Spieler');
-  const [gems, setGems] = useState(200); 
-  const [gold, setGold] = useState(0);   
+  // New-player starting Merits. Kept in sync with the Firestore initial profile below
+  // and the fallback when a stored profile is missing a `gems` field.
+  const [gems, setGems] = useState(2000);
+  const [gold, setGold] = useState(0);
   const [inventory, setInventory] = useState<number[]>([]);
   const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>(['avatar_0', 'sleeve_0', 'coin_1', 'frame_1', 'effect_1', 'playmat_1']);
   const [equippedCosmetics, setEquippedCosmetics] = useState<EquippedCosmetics>(defaultEquipped);
@@ -156,7 +158,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (snap.exists()) {
             const data = snap.data();
             setUsernameState(data.username || 'Spieler');
-            setGems(data.gems ?? 200);
+            setGems(data.gems ?? 2000);
             setGold(data.gold ?? 0);
             setInventory(data.inventory || []);
             setOwnedCosmetics(data.ownedCosmetics || []);
@@ -177,7 +179,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const initialData = {
                 id: user.uid,
                 username: user.displayName || 'Spieler',
-                gems: 200,
+                gems: 2000,
                 gold: 0,
                 inventory: [],
                 ownedCosmetics: ['avatar_0', 'sleeve_0', 'coin_1', 'frame_1', 'effect_1', 'playmat_1'],
