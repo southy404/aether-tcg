@@ -229,10 +229,6 @@ export default function LandingPage() {
               </div>
             </CardContent>
           </Card>
-          
-          <p className="mt-12 text-[9px] text-white/20 uppercase tracking-[5px] text-center">
-            Aether Engine v1.0 • Powered by Genkit & Firebase
-          </p>
         </div>
 
         {/* Sparkles Background Effect */}

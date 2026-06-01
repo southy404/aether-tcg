@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { GameCard, GamePhase, PlayerId } from '@/lib/types';
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
+import { cn, hasFocusCapability } from '@/lib/utils';
 import { Swords, Heart, Star, Shield, Paperclip, Sparkles, Disc, Leaf } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { useGameState } from './GameBoard';
@@ -197,7 +197,11 @@ export default function CardOnBoard({ card, owner, isAttacker, isBlocker, isSele
                       <div className="flex gap-0.5">
                           {card.type === 'Unit' && card.currentHp !== undefined && card.currentAtk !== undefined && (
                               <>
-                              <div className="flex items-center gap-0.5 text-white px-0.5 rounded-sm font-bold bg-red-600/80">
+                              <div className={cn(
+                                  "flex items-center gap-0.5 text-white px-0.5 rounded-sm font-bold bg-red-600/80",
+                                  // Highlight when buffed beyond base attack (overcharge / +1 buffs).
+                                  card.atk !== undefined && card.currentAtk > card.atk && 'text-orange-300'
+                              )}>
                                   <Swords size={8} /> {card.currentAtk}
                               </div>
                               <div className={cn(
@@ -206,9 +210,11 @@ export default function CardOnBoard({ card, owner, isAttacker, isBlocker, isSele
                               )}>
                                   <Heart size={8} /> {card.currentHp}
                               </div>
-                              <div className="flex items-center gap-0.5 text-white px-0.5 rounded-sm font-bold bg-yellow-400/80">
-                                  <Star size={8} /> {card.currentFokus}
-                              </div>
+                              {hasFocusCapability(card) && (
+                                  <div className="flex items-center gap-0.5 text-white px-0.5 rounded-sm font-bold bg-yellow-400/80">
+                                      <Star size={8} /> {card.currentFokus}
+                                  </div>
+                              )}
                               </>
                           )}
                       </div>

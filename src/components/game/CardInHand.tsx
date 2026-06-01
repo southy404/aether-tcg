@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useDrag, useDragLayer } from 'react-dnd';
 import { GameCard } from '@/lib/types';
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
+import { cn, hasFocusCapability } from '@/lib/utils';
 import { Swords, Heart, Star } from 'lucide-react';
 import { useI18n } from '@/i18n';
 
@@ -135,9 +135,11 @@ export default function CardInHand({ card, handCount, index, onClick, isHighligh
                   <div className="stat stat-hp-bg flex items-center gap-0.5 text-white px-1 rounded-sm text-[10px] font-bold bg-green-600/80">
                     <Heart size={10} /> {card.hp}
                   </div>
-                  <div className="stat stat-fokus-bg flex items-center gap-0.5 text-white px-1 rounded-sm text-[10px] font-bold bg-blue-600/80">
-                    <Star size={10} /> {card.fokus || 0}
-                  </div>
+                  {hasFocusCapability(card) && (
+                    <div className="stat stat-fokus-bg flex items-center gap-0.5 text-white px-1 rounded-sm text-[10px] font-bold bg-blue-600/80">
+                      <Star size={10} /> {card.fokus || 0}
+                    </div>
+                  )}
                 </>
               )}
             </div>

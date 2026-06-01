@@ -13,7 +13,7 @@ import CardInHand from './CardInHand';
 import GameZone from './GameZone';
 import { ArrowRight, Shield, Hand as HandIcon, Eye, BookText, VolumeX, MessageSquare, Send, Info, ShieldAlert, Swords, MessageCircle, User, Bot, ChevronLeft, ChevronRight, Layers, Skull, Minus, Plus, Sparkles, Heart, Star, Flame, Waves, Leaf, Zap, Disc, Flag, Check, X, Maximize, Minimize, Volume2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, hasFocusCapability } from '@/lib/utils';
 import { useDrop, useDragLayer, DropTargetMonitor } from 'react-dnd';
 import { ItemTypes } from './CardInHand';
 import CardDetailModal from './CardDetailModal';
@@ -185,16 +185,22 @@ export const DetailedCard = ({ card, onVideoEnd, onOvercharge }: { card: Inspect
                 <div className="absolute top-4 right-4 bg-black/60 p-2 rounded-md border border-white/20 text-white text-base space-y-1.5 z-40">
                     <div className="flex items-center justify-end gap-1.5">
                         <Swords size={16} className="text-red-400" />
-                        <span className="font-bold text-lg text-right">{displayAtk}</span>
+                        <span className={cn(
+                            "font-bold text-lg text-right",
+                            // Highlight when the live attack is above the base (overcharge / buffs).
+                            card.atk !== undefined && displayAtk !== undefined && displayAtk > card.atk && 'text-orange-300'
+                        )}>{displayAtk}</span>
                     </div>
                     <div className="flex items-center justify-end gap-1.5">
                         <Heart size={16} className="text-green-400" />
                         <span className={cn("font-bold text-lg text-right", (displayHp !== undefined && card.hp !== undefined && displayHp < card.hp) && 'text-red-400')}>{displayHp}</span>
                     </div>
-                    <div className="flex items-center justify-end gap-1.5">
-                        <Star size={16} className="text-yellow-400" />
-                        <span className="font-bold text-lg text-right">{displayFokus}</span>
-                    </div>
+                    {hasFocusCapability(card) && (
+                        <div className="flex items-center justify-end gap-1.5">
+                            <Star size={16} className="text-yellow-400" />
+                            <span className="font-bold text-lg text-right">{displayFokus}</span>
+                        </div>
+                    )}
                 </div>
             )}
             
@@ -432,52 +438,60 @@ export const createInitialState = (playerDeck: Deck, startingPlayer: PlayerId, i
   
   if (isTutorial) {
     let playerDeckCopy = [...initialPlayerDeck];
-    let handCards: GameCard[] = [];
-    const handIds = [80, 14, 9, 7, 16];
-    
-    handIds.forEach(id => {
-      const cardIndex = playerDeckCopy.findIndex(c => c.id === id);
-      const cardData = cardIndex > -1 ? playerDeckCopy.splice(cardIndex, 1)[0] : MASTER_DB.find(c => c.id === id)!;
-      handCards.push({ ...cardData, instanceId: `tut-hand-${id}`, owner: 'player' } as GameCard);
-    });
 
+    // Pluck specific tutorial cards out of the deck so we can re-stack them in a known order.
+    const pluckById = (deck: GameCard[], ids: number[], owner: PlayerId, idTag: string): GameCard[] =>
+      ids.map(id => {
+        const cardIndex = deck.findIndex(c => c.id === id);
+        if (cardIndex > -1) {
+          return deck.splice(cardIndex, 1)[0];
+        }
+        return { ...MASTER_DB.find(c => c.id === id)!, instanceId: `${idTag}-${id}-${Math.random()}`, owner } as GameCard;
+      });
+
+    // Cards the player should hold at the start of the duel. We DON'T pre-populate the hand —
+    // instead we seed them at the deck top so the regular 'initial-draw' phase animates each
+    // one in (one card per game-loop tick), just like a real match.
+    const initialHandIds = [80, 14, 9, 7, 16];
+    const initialHandCards = pluckById(playerDeckCopy, initialHandIds, 'player', 'tut-hand');
+
+    // Cards the player should draw on turns 1-3 (one per turn).
     const drawCards = [4, 3, 10];
-    const drawDeckPart = drawCards.map(id => {
-      const cardIndex = playerDeckCopy.findIndex(c => c.id === id);
-      return cardIndex > -1 ? playerDeckCopy.splice(cardIndex, 1)[0] : { ...MASTER_DB.find(c => c.id === id)!, instanceId: `tut-draw-${id}`, owner: 'player' } as GameCard;
-    }).reverse();
+    const drawDeckPart = pluckById(playerDeckCopy, drawCards, 'player', 'tut-draw').reverse();
 
-    initialPlayerDeck = [...shuffleDeck(playerDeckCopy), ...drawDeckPart];
-    
+    // Deck layout (bottom → top, i.e. pop order is right-to-left):
+    //   [...shuffled rest, ...turn-draws-reversed, ...initial-hand-reversed]
+    // So pop() yields card 80 first, then 14, 9, 7, 16 (initial hand), then 4 (turn 1 draw)
+    // then 3 (turn 2), then 10 (turn 3), then random.
+    initialPlayerDeck = [
+      ...shuffleDeck(playerDeckCopy),
+      ...drawDeckPart,
+      ...[...initialHandCards].reverse(),
+    ];
+
+    // AI initial hand: Aether Source (80), Icewalker (18), second Aether Source (80) for the
+    // turn-2 step, plus 2 random cards from the rest of the deck.
     let opponentDeckCopy = [...initialOpponentDeck];
-    const getCardsFromDeck = (ids: number[], deck: GameCard[]): GameCard[] => {
-        return ids.map(id => {
-            const cardIndex = deck.findIndex(c => c.id === id);
-            if (cardIndex > -1) {
-                return deck.splice(cardIndex, 1)[0];
-            }
-            return { ...MASTER_DB.find(c => c.id === id)!, instanceId: `tut-ai-fallback-${id}`, owner: 'opponent' } as GameCard;
-        });
-    };
+    const aiInitialHand: GameCard[] = pluckById(opponentDeckCopy, [80, 18, 80], 'opponent', 'tut-ai');
+    aiInitialHand.push(...opponentDeckCopy.splice(0, 2));
 
-    // AI tutorial hand needs:
-    //   turn 1 → Aether Source (80) + Icewalker (18)
-    //   turn 2 → another Aether Source (80) so the await-opponent-aether-2 step can resolve
-    //            (otherwise the spirit waits forever and the tutorial deadlocks)
-    //   turn 3 → Icebound Defender (25), drawn from the deck top
-    const aiHand = getCardsFromDeck([80, 18, 80], opponentDeckCopy);
-    aiHand.push(...opponentDeckCopy.splice(0, 2));
-
-    const aiDraws = getCardsFromDeck([25], opponentDeckCopy).reverse();
-    initialOpponentDeck = [...shuffleDeck(opponentDeckCopy), ...aiDraws];
+    // AI turn-3 draw: Icebound Defender (25).
+    const aiDraws = pluckById(opponentDeckCopy, [25], 'opponent', 'tut-ai-draw').reverse();
+    initialOpponentDeck = [
+      ...shuffleDeck(opponentDeckCopy),
+      ...aiDraws,
+      ...[...aiInitialHand].reverse(),
+    ];
 
     const baseState = createInitialState(playerDeck, startingPlayer, false, username);
     baseState.players.player.deck = initialPlayerDeck;
     baseState.players.opponent.deck = initialOpponentDeck;
-    baseState.players.player.hand = handCards;
-    baseState.players.opponent.hand = aiHand;
-    baseState.phase = 'start';
-    
+    baseState.players.player.hand = [];
+    baseState.players.opponent.hand = [];
+    // 'initial-draw' triggers the per-card draw animation in the game loop. Once 5 cards have
+    // been dealt to each side, the loop flips to phase='start' on its own.
+    baseState.phase = 'initial-draw';
+
     return baseState;
   }
   
@@ -1345,7 +1359,7 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
             
             const activePlayerState = draft.players[draft.activePlayer];
 
-            if (draft.phase === 'initial-draw' && !isTutorial) {
+            if (draft.phase === 'initial-draw') {
                 const playerDrawComplete = draft.players.player.hand.length >= 5;
                 const opponentDrawComplete = draft.players.opponent.hand.length >= 5;
 
@@ -1481,7 +1495,9 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
         }));
     };
     
-    const loopTimeout = gameState.phase === 'initial-draw' && !isTutorial ? 300 : 1000;
+    // The initial-draw phase ticks faster so the opening hand fans in quickly — same pacing
+    // for tutorial and regular games.
+    const loopTimeout = gameState.phase === 'initial-draw' ? 300 : 1000;
     timeoutId = setTimeout(gameLoop, loopTimeout);
     
     return () => {

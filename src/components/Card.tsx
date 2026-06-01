@@ -2,8 +2,8 @@
 
 import React, { useRef } from 'react';
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
-import type { CardData, Rarity, CardType } from '@/lib/types';
+import { cn, hasFocusCapability } from '@/lib/utils';
+import type { CardData, Rarity, CardType, GameCard } from '@/lib/types';
 import {
   Tooltip,
   TooltipContent,
@@ -103,16 +103,25 @@ export default function Card({ card, className, onClick, disableHover = false }:
     const rotateY = (mouseX - 0.5) * 25;
     cardFaceRef.current.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
 
-    // GOD card parallax effect
+    // GOD card parallax effect.
+    // Three depth layers move at different rates / directions so the artwork looks like
+    // it sits behind glass:
+    //   • mainImg (base art, deepest)  — drifts WITH the cursor a small amount (opposite
+    //     to the foreground layers). This is what sells the parallax illusion.
+    //   • overlayImg (blurred holo middle layer) — moves AGAINST the cursor noticeably
+    //     so the player clearly sees the holographic sheen shift.
+    //   • defaultImg (topmost crisp layer) — moves AGAINST the cursor only slightly. The
+    //     top layer staying mostly anchored keeps the card's silhouette stable while the
+    //     mid-layer "swims" behind it.
     if (card.rarity === 'GOD') {
         if (mainImgContainerRef.current) {
-            mainImgContainerRef.current.style.transform = `translateX(${(mouseX - 0.5) * -10}px) translateY(${(mouseY - 0.5) * -10}px)`;
+            mainImgContainerRef.current.style.transform = `translateX(${(mouseX - 0.5) * 10}px) translateY(${(mouseY - 0.5) * 10}px)`;
         }
         if (overlayImgRef.current) {
-            overlayImgRef.current.style.transform = `translateX(${(mouseX - 0.5) * -25}px) translateY(${(mouseY - 0.5) * -25}px)`;
+            overlayImgRef.current.style.transform = `translateX(${(mouseX - 0.5) * -30}px) translateY(${(mouseY - 0.5) * -30}px)`;
         }
         if (defaultImgRef.current) {
-            defaultImgRef.current.style.transform = `translateX(${(mouseX - 0.5) * -50}px) translateY(${(mouseY - 0.5) * -50}px)`;
+            defaultImgRef.current.style.transform = `translateX(${(mouseX - 0.5) * -15}px) translateY(${(mouseY - 0.5) * -15}px)`;
         }
     }
   };
@@ -215,22 +224,38 @@ export default function Card({ card, className, onClick, disableHover = false }:
                 {card.cost}
                 </div>
 
-                {card.type === 'Unit' && (
-                <div className="absolute top-2.5 right-2.5 bg-black/60 p-1.5 rounded-md border border-white/20 text-white text-xs space-y-1 z-50">
-                    <div className="flex items-center justify-end gap-1">
-                        <Swords size={12} className="text-red-400" />
-                        <span className="font-bold text-sm text-right">{card.atk}</span>
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                        <Heart size={12} className="text-green-400" />
-                        <span className="font-bold text-sm text-right">{card.hp}</span>
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                        <Star size={12} className="text-yellow-400" />
-                        <span className="font-bold text-sm text-right">{card.fokus}</span>
-                    </div>
-                </div>
-                )}
+                {card.type === 'Unit' && (() => {
+                    // Prefer the live combat values (currentAtk/currentHp/currentFokus) when this
+                    // Card is rendered for a unit already on the board — that way an overcharged
+                    // attacker visibly shows its boosted ATK in any preview/combat modal that uses
+                    // <Card>. Static cards (in shop/marketplace) lack `current*` fields and fall
+                    // back to the base stats.
+                    const gc = card as GameCard;
+                    const baseAtk = card.atk;
+                    const displayAtk = gc.currentAtk ?? baseAtk;
+                    const displayHp = gc.currentHp ?? card.hp;
+                    const displayFokus = gc.currentFokus ?? card.fokus;
+                    const isBuffed = baseAtk !== undefined && displayAtk !== undefined && displayAtk > baseAtk;
+                    const isDamaged = card.hp !== undefined && displayHp !== undefined && displayHp < card.hp;
+                    return (
+                        <div className="absolute top-2.5 right-2.5 bg-black/60 p-1.5 rounded-md border border-white/20 text-white text-xs space-y-1 z-50">
+                            <div className="flex items-center justify-end gap-1">
+                                <Swords size={12} className="text-red-400" />
+                                <span className={cn('font-bold text-sm text-right', isBuffed && 'text-orange-300')}>{displayAtk}</span>
+                            </div>
+                            <div className="flex items-center justify-end gap-1">
+                                <Heart size={12} className="text-green-400" />
+                                <span className={cn('font-bold text-sm text-right', isDamaged && 'text-red-400')}>{displayHp}</span>
+                            </div>
+                            {hasFocusCapability(card) && (
+                                <div className="flex items-center justify-end gap-1">
+                                    <Star size={12} className="text-yellow-400" />
+                                    <span className="font-bold text-sm text-right">{displayFokus}</span>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
                 
                  <div className="absolute inset-x-0 bottom-0 pb-2 z-50 flex flex-col justify-end h-[140px]">
                     <div className="relative">

@@ -9,6 +9,7 @@ import AudioProvider from '@/context/AudioProvider';
 import React from 'react';
 import ConditionalLayout from '@/components/ConditionalLayout';
 import AetherCursor from '@/components/AetherCursor';
+import AuthGuard from '@/components/AuthGuard';
 import { FirebaseClientProvider } from '@/firebase';
 import { I18nProvider } from '@/i18n';
 
@@ -35,9 +36,11 @@ export default function RootLayout({
           <I18nProvider>
             <AppProvider>
               <AudioProvider>
-                <ConditionalLayout>
-                  {children}
-                </ConditionalLayout>
+                <AuthGuard>
+                  <ConditionalLayout>
+                    {children}
+                  </ConditionalLayout>
+                </AuthGuard>
                 <Toaster />
               </AudioProvider>
             </AppProvider>

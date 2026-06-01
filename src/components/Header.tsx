@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/AppContext';
 import { Volume2, VolumeX, User, Settings, LogOut, Maximize, Minimize, LogIn, Sparkles, Users } from 'lucide-react';
 import { Button } from './ui/button';
@@ -22,6 +23,7 @@ export default function Header() {
   const { user } = useUser();
   const firestore = useFirestore();
   const auth = useAuth();
+  const router = useRouter();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const handleFullscreenToggle = () => {
@@ -47,8 +49,13 @@ export default function Header() {
     }
   };
 
-  const handleLogout = () => {
-    if (auth) signOut(auth);
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth);
+    }
+    // Force the redirect immediately so the player doesn't linger on a protected page
+    // while the AuthGuard catches up. router.replace avoids leaving the game route in history.
+    router.replace('/');
   };
 
   // Notification logic for friend requests

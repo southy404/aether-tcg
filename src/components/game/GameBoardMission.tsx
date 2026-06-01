@@ -13,7 +13,7 @@ import CardInHand from './CardInHand';
 import GameZone from './GameZone';
 import { ArrowRight, Shield, Hand as HandIcon, Eye, BookText, VolumeX, MessageSquare, Send, Info, ShieldAlert, Swords, MessageCircle, User, Bot, ChevronLeft, ChevronRight, Layers, Skull, Minus, Plus, Sparkles, Heart, Star, Flame, Waves, Leaf, Zap, Disc, Flag, Check, X, Maximize, Minimize, Volume2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, hasFocusCapability } from '@/lib/utils';
 import { useDrop, useDragLayer, DropTargetMonitor } from 'react-dnd';
 import { ItemTypes } from './CardInHand';
 import CardDetailModal from './CardDetailModal';
@@ -163,16 +163,21 @@ export const DetailedCard = ({ card, onVideoEnd, onOvercharge }: { card: Inspect
                 <div className="absolute top-4 right-4 bg-black/60 p-2 rounded-md border border-white/20 text-white text-base space-y-1.5 z-40">
                     <div className="flex items-center justify-end gap-1.5">
                         <Swords size={16} className="text-red-400" />
-                        <span className="font-bold text-lg text-right">{displayAtk}</span>
+                        <span className={cn(
+                            "font-bold text-lg text-right",
+                            card.atk !== undefined && displayAtk !== undefined && displayAtk > card.atk && 'text-orange-300'
+                        )}>{displayAtk}</span>
                     </div>
                     <div className="flex items-center justify-end gap-1.5">
                         <Heart size={16} className="text-green-400" />
                         <span className={cn("font-bold text-lg text-right", (displayHp !== undefined && card.hp !== undefined && displayHp < card.hp) && 'text-red-400')}>{displayHp}</span>
                     </div>
-                    <div className="flex items-center justify-end gap-1.5">
-                        <Star size={16} className="text-yellow-400" />
-                        <span className="font-bold text-lg text-right">{displayFokus}</span>
-                    </div>
+                    {hasFocusCapability(card) && (
+                        <div className="flex items-center justify-end gap-1.5">
+                            <Star size={16} className="text-yellow-400" />
+                            <span className="font-bold text-lg text-right">{displayFokus}</span>
+                        </div>
+                    )}
                 </div>
             )}
             
