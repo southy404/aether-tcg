@@ -23,9 +23,10 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { useI18n, type TranslationKey } from '@/i18n';
 import { getAccountTitle, getLevelInfo } from '@/lib/progression';
 
-// Hilfskomponente für einen einzelnen Freund in der Liste
+// Helper component for a single friend list entry
 const FriendListItem = ({ otherId, active, onClick }: { otherId: string, active: boolean, onClick: (profile: any) => void }) => {
     const firestore = useFirestore();
+    const { t } = useI18n();
     const userRef = useMemoFirebase(() => doc(firestore, 'users', otherId), [firestore, otherId]);
     const { data: profile, isLoading } = useDoc(userRef);
 
@@ -33,9 +34,9 @@ const FriendListItem = ({ otherId, active, onClick }: { otherId: string, active:
     if (!profile) return null;
 
     const equippedAvatar = cosmeticItems.avatars.find(a => a.id === (profile.equippedCosmetics?.avatar || 'avatar_0'));
-    
+
     return (
-        <div 
+        <div
             className={cn(
             "flex items-center justify-between p-3 rounded-xl border border-border/50 hover:border-primary/50 transition-all cursor-pointer group",
             active ? "bg-primary/10 border-primary/50" : "bg-black/20"
@@ -47,8 +48,8 @@ const FriendListItem = ({ otherId, active, onClick }: { otherId: string, active:
                     <Image src={equippedAvatar?.img || '/avatar/spirit.jpg'} alt="Avatar" fill className="object-cover" />
                 </div>
                 <div>
-                    <p className="font-bold text-sm">{profile.username || 'Unbekannter Binder'}</p>
-                    <p className="text-xs text-muted-foreground group-hover:text-primary transition-colors">Chatten</p>
+                    <p className="font-bold text-sm">{profile.username || t('unknownBinder')}</p>
+                    <p className="text-xs text-muted-foreground group-hover:text-primary transition-colors">{t('chat')}</p>
                 </div>
             </div>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -133,7 +134,7 @@ export default function SocialPage() {
     
     const alreadySent = sentRequests?.some(r => r.toId === targetUser.id);
     if (alreadySent) {
-        toast({ title: 'Bereits gesendet', description: 'Du hast bereits eine Anfrage geschickt.' });
+        toast({ title: t('requestAlreadySent'), description: t('requestAlreadySentDescription') });
         return;
     }
 
@@ -154,7 +155,7 @@ export default function SocialPage() {
         }));
       });
     
-    toast({ title: 'Anfrage gesendet', description: `Anfrage an ${targetUser.username} verschickt.` });
+    toast({ title: t('requestSent'), description: t('requestSentToUser', { user: targetUser.username }) });
   };
 
   const acceptRequest = async (request: any) => {
@@ -188,7 +189,7 @@ export default function SocialPage() {
         }));
       });
 
-    toast({ title: 'Freund hinzugefügt', description: `Du bist jetzt mit ${request.fromName} befreundet.` });
+    toast({ title: t('friendAdded'), description: t('nowFriendsWith', { user: request.fromName }) });
   };
 
   const declineRequest = async (requestId: string) => {
@@ -257,8 +258,8 @@ export default function SocialPage() {
 
       <div className="container relative z-10 mx-auto px-4 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold tracking-wider title-gradient uppercase">Soziales Zentrum</h1>
-          <p className="text-muted-foreground mt-2 text-lg">Verwalte deine Freunde und tausche Nachrichten aus.</p>
+          <h1 className="text-5xl font-bold tracking-wider title-gradient uppercase">{t('socialHub')}</h1>
+          <p className="text-muted-foreground mt-2 text-lg">{t('socialHubDescription')}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto h-[700px]">
@@ -266,8 +267,8 @@ export default function SocialPage() {
           <Card className="lg:col-span-4 bg-card/80 backdrop-blur-sm border-primary/20 flex flex-col overflow-hidden">
             <Tabs defaultValue="friends" className="flex flex-col h-full">
               <TabsList className="grid w-full grid-cols-2 bg-black/20">
-                <TabsTrigger value="friends">Freunde</TabsTrigger>
-                <TabsTrigger value="search">Suchen</TabsTrigger>
+                <TabsTrigger value="friends">{t('friends')}</TabsTrigger>
+                <TabsTrigger value="search">{t('searchTab')}</TabsTrigger>
               </TabsList>
               
               <TabsContent value="friends" className="flex-grow flex flex-col p-0 overflow-hidden">
@@ -287,14 +288,14 @@ export default function SocialPage() {
                     </div>
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
-                      <p>Noch keine Freunde.</p>
-                      <p className="text-sm">Suche nach anderen Spielern!</p>
+                      <p>{t('noFriendsYet')}</p>
+                      <p className="text-sm">{t('searchOtherPlayers')}</p>
                     </div>
                   )}
 
                   {pendingRequests && pendingRequests.length > 0 && (
                     <div className="mt-8">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-4 ml-1">Anfragen ({pendingRequests.length})</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-4 ml-1">{t('requestsCount', { count: pendingRequests.length })}</h3>
                       <div className="space-y-2">
                         {pendingRequests.map(req => (
                           <div key={req.id} className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
@@ -313,9 +314,9 @@ export default function SocialPage() {
 
               <TabsContent value="search" className="flex-grow flex flex-col p-4 space-y-4 overflow-hidden">
                 <form onSubmit={handleSearch} className="flex gap-2">
-                  <Input 
-                    placeholder="Spielername..." 
-                    value={searchTerm} 
+                  <Input
+                    placeholder={t('playerName')}
+                    value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="bg-black/40"
                   />
@@ -340,7 +341,7 @@ export default function SocialPage() {
                       ))}
                     </div>
                   ) : searchTerm && (
-                    <div className="text-center py-8 text-muted-foreground text-sm">Keine Spieler gefunden.</div>
+                    <div className="text-center py-8 text-muted-foreground text-sm">{t('noPlayersFound')}</div>
                   )}
                 </ScrollArea>
               </TabsContent>
@@ -371,7 +372,7 @@ export default function SocialPage() {
                         </div>
                     </div>
                     <Link href={`/profile?userId=${activeChatProfile.id}`} target="_blank">
-                        <Button variant="ghost" size="sm">Profil ansehen</Button>
+                        <Button variant="ghost" size="sm">{t('viewProfile')}</Button>
                     </Link>
                   </div>
                 </CardHeader>
@@ -385,7 +386,7 @@ export default function SocialPage() {
                           <div key={msg.id || i} className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
                             <div className="flex items-center gap-2 mb-1">
                                 {!isMe && <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{activeChatProfile.username}</span>}
-                                {isMe && <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Du</span>}
+                                {isMe && <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('you')}</span>}
                             </div>
                             <div className={cn(
                               "max-w-[70%] p-3 rounded-2xl text-sm shadow-lg",
@@ -404,9 +405,9 @@ export default function SocialPage() {
                   
                   <div className="p-4 bg-black/20 border-t border-border/50">
                     <form onSubmit={sendMessage} className="flex gap-2">
-                      <Input 
-                        placeholder="Deine Nachricht..." 
-                        value={messageText} 
+                      <Input
+                        placeholder={t('yourMessage')}
+                        value={messageText}
                         onChange={(e) => setMessageText(e.target.value)}
                         className="bg-black/40 h-12"
                       />
@@ -423,8 +424,8 @@ export default function SocialPage() {
                     <MessageSquare className="h-10 w-10 opacity-20" />
                 </div>
                 <div className="text-center">
-                    <p className="text-xl font-bold">Wähle einen Freund aus</p>
-                    <p className="text-sm">Um einen neuen Chat zu starten.</p>
+                    <p className="text-xl font-bold">{t('pickAFriend')}</p>
+                    <p className="text-sm">{t('pickAFriendDescription')}</p>
                 </div>
               </div>
             )}
@@ -435,7 +436,7 @@ export default function SocialPage() {
           <Link href="/game">
             <Button variant="ghost">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Zurück zum Hauptmenü
+              {t('backToMainMenu')}
             </Button>
           </Link>
         </div>

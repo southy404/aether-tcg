@@ -621,9 +621,11 @@ export default function GameBoardMission({ playerDeck, mission, startingPlayer, 
       }).then(setXpAwardResult);
       completeMission(mission.id);
       setGems(prev => prev + 100);
-      if (gameState) {
-          addLogAndToast(gameState, ["Du hast 100 Merits für deinen Sieg erhalten!"], 'info', 'player');
-      }
+      // gameState here is the frozen Immer state — we must mutate via produce, not addLogAndToast(gameState, …).
+      setGameState(produce(draft => {
+          if (!draft) return;
+          addLogAndToast(draft, [gameText("Du hast 100 Merits für deinen Sieg erhalten!")], 'info', 'player');
+      }));
       rewardGiven.current = true;
     }
     if (!gameState?.winner) {
@@ -780,6 +782,17 @@ export default function GameBoardMission({ playerDeck, mission, startingPlayer, 
   }, []);
   
     const continueAfterResponse = useCallback((draft: GameState) => {
+    // Determine whether the response happened in a combat context.
+    // Non-combat traps (on play / on death / on spell cast) must not advance the turn here —
+    // the game loop will pick the active player's action back up on the next tick.
+    const isCombatContext = draft.phase === 'combat'
+        || draft.phase === 'declare-blockers'
+        || draft.combatState.attacks.length > 0;
+
+    if (!isCombatContext) {
+      return;
+    }
+
     if (draft.combatState.attacks.length > 0) {
       const canPlayerBlock = draft.players.player.unitZone.some(u => u && !u.isExhausted);
       if (canPlayerBlock && draft.activePlayer === 'opponent') {
@@ -1556,6 +1569,20 @@ export default function GameBoardMission({ playerDeck, mission, startingPlayer, 
                     }
                 } else {
                     addLogAndToast(draft, ["Ungültiges Ziel. Wähle eine angreifende Einheit."], 'error', 'player');
+                }
+            } else if (abilityId === 'TRAP_DAMAGE') {
+                if (owner !== sourceCard.owner) {
+                    const targetUnit = draft.players[owner].unitZone[position];
+                    if (targetUnit) {
+                        const damage = 3;
+                        applyDamageToUnit(draft, damage, owner, position, sourceCard.owner);
+                        addLogAndToast(draft, [{type: 'card', cardId: sourceCard.id, content: sourceCard.name}, ` fügt `, {type: 'card', cardId: targetUnit.id, content: targetUnit.name}, ` ${damage} Schaden zu.`] , 'effect', sourceCard.owner);
+                        playSound('selection');
+                        draft.combatState.isTargeting = null;
+                        continueAfterResponse(draft);
+                    }
+                } else {
+                    addLogAndToast(draft, [`Wähle eine gegnerische Einheit.`], 'error', 'player');
                 }
             } else if (abilityId === 'WATER_ELEMENTAR_DEBUFF') {
                  if (card.owner !== activePlayer) {

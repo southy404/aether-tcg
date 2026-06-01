@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { cosmeticItems, FrameItem } from '@/lib/cosmetics';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useI18n } from '@/i18n';
 
 
 interface PlayerAvatarProps {
@@ -25,6 +26,7 @@ export default function PlayerAvatar({ player, onAvatarClick, isTargetForSpell, 
   const isPlayer = player.id === 'player';
   const [showEmote, setShowEmote] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
+  const { gameText } = useI18n();
 
   useEffect(() => {
     if (player.currentEmote) {
@@ -47,8 +49,9 @@ export default function PlayerAvatar({ player, onAvatarClick, isTargetForSpell, 
   }, [player.currentMessage]);
 
 
+  // Default cosmetics: player gets the basic Aether Spirit, AI opponent gets the Cyber Guardian (avatar_10).
   const finalEquipped = isPlayer && equippedCosmetics ? equippedCosmetics : {
-      avatar: 'avatar_0',
+      avatar: isPlayer ? 'avatar_0' : 'avatar_10',
       frame: 'frame_1',
       effect: 'effect_1',
       cardBack: 'sleeve_1',
@@ -79,7 +82,7 @@ export default function PlayerAvatar({ player, onAvatarClick, isTargetForSpell, 
           <div className="cosmetic-glow" style={{ '--glow-color': `${equippedFrame.glowColor}40` } as React.CSSProperties} />
         )}
         <Image
-            src={(isPlayer && equippedAvatar) ? equippedAvatar.img : customAvatar ? customAvatar : `https://api.dicebear.com/7.x/micah/svg?seed=${player.id}`}
+            src={customAvatar ? customAvatar : (equippedAvatar?.img ?? `https://api.dicebear.com/7.x/micah/svg?seed=${player.id}`)}
             alt="User Avatar"
             fill
             className="object-cover"
@@ -94,11 +97,12 @@ export default function PlayerAvatar({ player, onAvatarClick, isTargetForSpell, 
 
   return (
     <div className="relative mt-4">
-      <div 
+      <div
         id={player.id}
         ref={dropRef}
         className={cn(
-          `relative flex items-center justify-between gap-2 p-3 pt-5 rounded-lg transition-all bg-black/20 border border-primary/50 w-72 min-h-[90px]`,
+          // Same backdrop treatment as the in-game log panel for a consistent UI.
+          `relative flex items-center justify-between gap-2 p-3 pt-5 rounded-lg transition-all bg-black/50 backdrop-blur-sm border border-primary/30 w-72 min-h-[90px]`,
           isPlayer ? 'flex-row' : 'flex-row-reverse',
           isTargetForSpell && 'cursor-crosshair bg-red-500/20 hover:bg-red-500/40 border-2 border-red-500',
           isMultiTarget && 'border-yellow-400 bg-yellow-500/20 shadow-lg shadow-yellow-400/50'
@@ -152,11 +156,11 @@ export default function PlayerAvatar({ player, onAvatarClick, isTargetForSpell, 
             </div>
         )}
         {showMessage && player.currentMessage && (
-             <div 
+             <div
               key={player.currentMessage}
               className={cn("absolute z-50 max-w-xs bg-background/80 border border-primary rounded-lg p-2 text-sm animate-in fade-in zoom-in-90", bubbleAlignmentClasses)}
             >
-                {player.currentMessage}
+                {gameText(player.currentMessage)}
                 <div className={speechBubbleTailClasses}></div>
             </div>
         )}

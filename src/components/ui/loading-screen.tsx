@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { languageLabels, type Language, type TranslationKey, useI18n } from '@/i18n';
+import { type TranslationKey, useI18n } from '@/i18n';
 
 interface LoadingScreenProps {
   onFinished: () => void;
@@ -35,15 +35,8 @@ const loadingScreens: LoadingScreenDefinition[] = [
   },
 ];
 
-const languageNames: Record<Language, string> = {
-  en: 'English',
-  de: 'Deutsch',
-  es: 'Español',
-};
-
-
 export default function LoadingScreen({ onFinished }: LoadingScreenProps) {
-  const { language, t } = useI18n();
+  const { t } = useI18n();
   const [screen, setScreen] = useState(loadingScreens[0]);
 
   // Randomly select a screen on client-side to avoid hydration mismatch
@@ -182,23 +175,6 @@ export default function LoadingScreen({ onFinished }: LoadingScreenProps) {
           z-index: 20;
         }
 
-        .language-badge {
-          position: absolute;
-          top: 24px;
-          right: 24px;
-          z-index: 25;
-          padding: 8px 12px;
-          border: 1px solid rgba(96, 165, 250, 0.35);
-          background: rgba(0, 0, 0, 0.45);
-          backdrop-filter: blur(8px);
-          border-radius: 999px;
-          color: rgba(255, 255, 255, 0.78);
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-        }
-
         .progress-border {
           width: 100%;
           height: 14px;
@@ -293,10 +269,6 @@ export default function LoadingScreen({ onFinished }: LoadingScreenProps) {
         <div className="readability-overlay"></div>
         <div className="vignette-strong"></div>
         <div className="bottom-shading"></div>
-
-        <div className="language-badge">
-          {t('selectedLanguage')}: {languageLabels[language]} · {languageNames[language]}
-        </div>
 
         <div className="main-container text-center">
           <div className="quote-container px-10">

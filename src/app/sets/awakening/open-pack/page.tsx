@@ -19,10 +19,28 @@ const PACK_SIZE = 5;
 function generatePack(element: Element | null): CardData[] {
     const pack: CardData[] = [];
 
-    const getCardByRarityAndElement = (rarity: Rarity, biasedElement: Element | null, excludeIds: number[] = []): CardData => {
-        let potentialCards = MASTER_DB.filter(c => c.rarity === rarity && !excludeIds.includes(c.id));
-        if (potentialCards.length === 0) { // Fallback if no cards of that rarity exist
-           potentialCards = MASTER_DB.filter(c => !excludeIds.includes(c.id));
+    // Pulls a random card of the given rarity. `excludeAether` removes Aether-type cards
+    // from the pool — used for every non-Aether slot so a pack ships with exactly one
+    // Aether card (the only exception is a Legendary/GOD pull in the rare+ slot, which is
+    // handled by the caller).
+    const getCardByRarityAndElement = (
+        rarity: Rarity,
+        biasedElement: Element | null,
+        excludeIds: number[] = [],
+        excludeAether: boolean = false,
+    ): CardData => {
+        const baseFilter = (c: CardData) =>
+            c.rarity === rarity &&
+            !excludeIds.includes(c.id) &&
+            (!excludeAether || c.type !== 'Aether');
+
+        let potentialCards = MASTER_DB.filter(baseFilter);
+        if (potentialCards.length === 0) {
+            // Fallback if no cards of that rarity exist — still respect the Aether exclusion
+            // so we don't accidentally double-up Aether cards.
+            potentialCards = MASTER_DB.filter(c =>
+                !excludeIds.includes(c.id) && (!excludeAether || c.type !== 'Aether'),
+            );
         }
 
         if (biasedElement) {
@@ -34,7 +52,7 @@ function generatePack(element: Element | null): CardData[] {
         }
         return getRandomItem(potentialCards);
     };
-    
+
     const getAetherCard = (): CardData => {
         const aetherCards = MASTER_DB.filter(c => c.type === 'Aether');
         const rand = Math.random() * 100;
@@ -44,40 +62,45 @@ function generatePack(element: Element | null): CardData[] {
         else if (rand < 5.5) rarityToGet = "Epic"; // 5%
         else if (rand < 25.5) rarityToGet = "Rare"; // 20%
         else rarityToGet = "Uncommon";
-        
+
         let potentialAether = aetherCards.filter(c => c.rarity === rarityToGet);
         if (potentialAether.length === 0) {
             // Fallback to most common rarity if no cards of the target rarity exist
             potentialAether = aetherCards.filter(c => c.rarity === 'Common');
         }
-        
+
         return getRandomItem(potentialAether.length > 0 ? potentialAether : aetherCards);
     }
 
     const drawnIds: number[] = [];
-    
-    // 1. Aether Slot
+
+    // 1. Aether Slot — always exactly one Aether-type card.
     const aetherCard = getAetherCard();
     pack.push(aetherCard);
     drawnIds.push(aetherCard.id);
 
-    // 2. Three Common/Uncommon slots
+    // 2. Three Common/Uncommon slots — Aether cards are forbidden here so we don't end up
+    //    with multiple Aether cards in the same pack.
     for (let i = 0; i < 3; i++) {
         const rand = Math.random();
         const rarity: Rarity = rand < 0.2 ? "Uncommon" : "Common";
-        pack.push(getCardByRarityAndElement(rarity, element, drawnIds));
+        pack.push(getCardByRarityAndElement(rarity, element, drawnIds, /* excludeAether */ true));
         drawnIds.push(pack[pack.length - 1].id);
     }
-    
-    // 3. High-Rarity Slot (guaranteed at least one rare)
+
+    // 3. High-Rarity Slot. Aether is only allowed when the rolled tier is Legendary or GOD —
+    //    those are the "exception" cards that can legitimately put a second Aether in the
+    //    pack. Rare/Epic slots stay non-Aether so e.g. Aether Core (Rare) and Aether Reactor
+    //    (Epic) won't crowd the high-rarity slot.
     const random = Math.random() * 100;
     let highRarity: Rarity;
     if (random <= 0.01) highRarity = "GOD";
     else if (random <= 0.51) highRarity = "Legendary";
     else if (random <= 20.51) highRarity = "Epic";
     else highRarity = "Rare";
-    
-    pack.push(getCardByRarityAndElement(highRarity, element, drawnIds));
+
+    const allowAetherInHighSlot = highRarity === "Legendary" || highRarity === "GOD";
+    pack.push(getCardByRarityAndElement(highRarity, element, drawnIds, /* excludeAether */ !allowAetherInHighSlot));
 
     // Shuffle the pack so the rare card isn't always last
     return pack.sort(() => Math.random() - 0.5);

@@ -1072,6 +1072,10 @@
         background: rgba(0,0,0,0.7);
         transition: opacity 0.3s ease-in-out;
         z-index: 150;
+        /* The overlay still receives pointer events so the surrounding UI is "locked",
+           but elements with .tutorial-highlight sit at z-index 160 and therefore
+           still receive clicks/drags before the overlay does. */
+        pointer-events: auto;
     }
     .highlight-overlay.hidden {
         display: none;
@@ -1084,8 +1088,14 @@
       position: relative;
       box-shadow: 0 0 15px 3px #00f2ff;
       animation: tutorial-pulse 1.5s infinite;
-      z-index: 160;
-      pointer-events: auto;
+      /* z-index 160 lifts the target above the .highlight-overlay (z-index 150)
+         so the spirit-guided card/button stays interactive while everything
+         else dims. Works only because the parent chain (GameBoard root, slot
+         containers, etc.) doesn't trap it in its own stacking context — none
+         of them set z-index. */
+      z-index: 160 !important;
+      pointer-events: auto !important;
+      border-radius: 0.5rem;
     }
     /* END TUTORIAL STYLES */
 

@@ -460,8 +460,13 @@ export const createInitialState = (playerDeck: Deck, startingPlayer: PlayerId, i
         });
     };
 
-    const aiHand = getCardsFromDeck([80, 18], opponentDeckCopy);
-    aiHand.push(...opponentDeckCopy.splice(0, 3)); 
+    // AI tutorial hand needs:
+    //   turn 1 → Aether Source (80) + Icewalker (18)
+    //   turn 2 → another Aether Source (80) so the await-opponent-aether-2 step can resolve
+    //            (otherwise the spirit waits forever and the tutorial deadlocks)
+    //   turn 3 → Icebound Defender (25), drawn from the deck top
+    const aiHand = getCardsFromDeck([80, 18, 80], opponentDeckCopy);
+    aiHand.push(...opponentDeckCopy.splice(0, 2));
 
     const aiDraws = getCardsFromDeck([25], opponentDeckCopy).reverse();
     initialOpponentDeck = [...shuffleDeck(opponentDeckCopy), ...aiDraws];
@@ -719,7 +724,11 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
 
           if (didWin && !isControlled) {
               setGems(prev => prev + 100);
-              addLogAndToast(gameState, ["Du hast 100 Merits für deinen Sieg erhalten!"], 'info', selfId);
+              // gameState here is the frozen Immer state from the previous tick — we must mutate via produce.
+              setGameState(produce(draft => {
+                  if (!draft) return;
+                  addLogAndToast(draft, [gameText("Du hast 100 Merits für deinen Sieg erhalten!")], 'info', selfId);
+              }));
           }
       }
       rewardGiven.current = true;
@@ -883,6 +892,17 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
   }, [startingPlayer]);
   
     const continueAfterResponse = useCallback((draft: GameState) => {
+    // Determine whether the response happened in a combat context.
+    // Non-combat traps (on play / on death / on spell cast) must not advance the turn here —
+    // the game loop will pick the active player's action back up on the next tick.
+    const isCombatContext = draft.phase === 'combat'
+        || draft.phase === 'declare-blockers'
+        || draft.combatState.attacks.length > 0;
+
+    if (!isCombatContext) {
+      return;
+    }
+
     if (draft.combatState.attacks.length > 0) {
       const canPlayerBlock = draft.players[selfId].unitZone.some(u => u && !u.isExhausted);
       if (canPlayerBlock && draft.activePlayer === otherId) {
@@ -1132,7 +1152,7 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
             return;
         }
     }
-    
+
     if (step.id === 'await-opponent-aether-2' && !ai.playedAetherThisTurn) {
         const aetherCard = ai.hand.find(c => c.type === 'Aether');
         if (aetherCard && canPlaySomething(aetherCard)) {
@@ -1140,7 +1160,7 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
             return;
         }
     }
-    
+
     if (step.id === 'await-opponent-defender-3' && !ai.unitZone.some(u => u?.id === 25)) {
         const unitCard = ai.hand.find(c => c.id === 25);
         if (unitCard && canPlaySomething(unitCard)) {
@@ -1149,7 +1169,21 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
         }
     }
 
-    if (!actionTaken && !draft.pendingAction && !draft.fullscreenCardAnimation) {
+    // The previous version unconditionally set phase=combat for every step that didn't have a
+    // matching action. That caused the AI to end its main phase the instant it ticked through
+    // intermediate narration steps (opponent-turn-1-start, opponent-draws-1, opponent-plays-aether-1, …)
+    // — so by the time the tutorial reached await-opponent-unit-1 the AI was already past combat
+    // and the tutorial stalled forever.
+    //
+    // We now only end the main phase at explicit terminal steps. Between these the AI sits in
+    // main phase and waits for the spirit's narration / autoAdvance ticker to land on the next
+    // await-* step.
+    const endsMainPhase =
+        step.id === 'opponent-turn-end-1' ||
+        step.id === 'await-opponent-attack-2' ||
+        step.id === 'opponent-turn-end-3';
+
+    if (endsMainPhase && !actionTaken && !draft.pendingAction && !draft.fullscreenCardAnimation) {
         draft.phase = 'combat';
     }
  }, [isTutorial, tutorialState, isAnimationMode]);
@@ -1798,6 +1832,20 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
                     }
                 } else {
                     addLogAndToast(draft, ["Ungültiges Ziel. Wähle eine angreifende Einheit."], 'error', selfId);
+                }
+            } else if (abilityId === 'TRAP_DAMAGE') {
+                if (owner !== sourceCard.owner) {
+                    const targetUnit = draft.players[owner].unitZone[position];
+                    if (targetUnit) {
+                        const damage = 3;
+                        applyDamageToUnit(draft, damage, owner, position, sourceCard.owner);
+                        addLogAndToast(draft, [{type: 'card', cardId: sourceCard.id, content: sourceCard.name}, ` fügt `, {type: 'card', cardId: targetUnit.id, content: targetUnit.name}, ` ${damage} Schaden zu.`] , 'effect', sourceCard.owner);
+                        playSound('selection');
+                        draft.combatState.isTargeting = null;
+                        continueAfterResponse(draft);
+                    }
+                } else {
+                    addLogAndToast(draft, [`Wähle eine gegnerische Einheit.`], 'error', selfId);
                 }
             } else if (abilityId === 'WATER_ELEMENTAR_DEBUFF') {
                  if (card.owner !== activePlayer) {
@@ -2737,8 +2785,8 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
             </div>
         </div>
         
-        <Hand playerState={players[otherId]} owner={otherId} isVisible={isHandVisible} onCardClick={() => {}} cardBackImg={opponentCardBack} isInitialDraw={phase === 'initial-draw'} isOpponentPerspective={isOpponentPerspective} />
-        <Hand playerState={players[selfId]} owner={selfId} isVisible={isHandVisible} onCardClick={handleInspectHandCard} cardBackImg={playerCardBack} isInitialDraw={phase === 'initial-draw'} isOpponentPerspective={isOpponentPerspective} />
+        <Hand playerState={players[otherId]} owner={otherId} isVisible={isHandVisible} onCardClick={() => {}} cardBackImg={opponentCardBack} tutorialState={tutorialState} isInitialDraw={phase === 'initial-draw'} isOpponentPerspective={isOpponentPerspective} />
+        <Hand playerState={players[selfId]} owner={selfId} isVisible={isHandVisible} onCardClick={handleInspectHandCard} cardBackImg={playerCardBack} tutorialState={tutorialState} isInitialDraw={phase === 'initial-draw'} isOpponentPerspective={isOpponentPerspective} />
         
         {localInspectedCard && <CardDetailModal card={localInspectedCard} gameState={gameState} onClose={() => setLocalInspectedCard(null)} onActivate={handleActivateAbility} onPlayFromHand={handlePlayFromHand} onOvercharge={(card) => setGameState(produce(draft => { if(!draft) return; draft.overchargeState = { card, position: card.position!, aether: draft.players[selfId].aether.current }; setLocalInspectedCard(null); }))} />}
         

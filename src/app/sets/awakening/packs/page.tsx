@@ -85,7 +85,7 @@ const PackDisplay = ({ pack, onClick }: { pack: typeof elementPacks[0], onClick:
 
 
 export default function PacksPage() {
-  const { gold, setGold, gems, setGems } = useAppContext();
+  const { gold, gems, spendGold, spendMerits } = useAppContext();
   const { toast } = useToast();
   const { t, element } = useI18n();
   const [showBuyDialog, setShowBuyDialog] = useState(false);
@@ -96,13 +96,18 @@ export default function PacksPage() {
     setPackToBuy(element);
     setShowBuyDialog(true);
   };
-  
+
   const purchaseWithGold = () => {
     if (gold < GOLD_COST) {
         toast({ title: t('notEnoughGoldTitle'), description: t('needGold', { amount: GOLD_COST }), variant: 'destructive' });
         return;
     }
-    setGold((prev) => prev - GOLD_COST);
+    // spendGold updates both local state and Firestore. Without persisting, the Firestore
+    // snapshot listener would resync the old (un-deducted) balance on the next tick.
+    if (!spendGold(GOLD_COST)) {
+        toast({ title: t('notEnoughGoldTitle'), description: t('needGold', { amount: GOLD_COST }), variant: 'destructive' });
+        return;
+    }
     finalizePurchase();
   }
 
@@ -111,7 +116,10 @@ export default function PacksPage() {
         toast({ title: t('notEnoughMeritsTitle'), description: t('needMerits', { amount: MERIT_COST }), variant: 'destructive' });
         return;
     }
-    setGems((prev) => prev - MERIT_COST);
+    if (!spendMerits(MERIT_COST)) {
+        toast({ title: t('notEnoughMeritsTitle'), description: t('needMerits', { amount: MERIT_COST }), variant: 'destructive' });
+        return;
+    }
     finalizePurchase();
   }
 

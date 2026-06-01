@@ -19,8 +19,11 @@ import { playSound } from '@/lib/audio';
 import { useI18n, type TranslationKey } from '@/i18n';
 import { getAccountTitle, getLevelInfo, getNextLevelReward, type LevelReward } from '@/lib/progression';
 
+const LOCALE_MAP: Record<string, string> = { en: 'en-US', de: 'de-DE', es: 'es-ES' };
+
 function ProfileContent() {
-    const { t } = useI18n();
+    const { t, language } = useI18n();
+    const numberLocale = LOCALE_MAP[language] ?? 'en-US';
     const { equippedCosmetics: myCosmetics, inventory: myInventory, xp: myXp, level: myLevel, accountTitle: myAccountTitle, xpProgress: myXpProgress, xpInCurrentLevel: myXpInCurrentLevel, xpPerLevel: myXpPerLevel, totalXpForNextLevel: myTotalXpForNextLevel, username: myUsername, wins: myWins, losses: myLosses, gamesPlayed: myGamesPlayed } = useAppContext();
     const { user: currentUser } = useUser();
     const searchParams = useSearchParams();
@@ -73,7 +76,7 @@ function ProfileContent() {
                 status: 'pending',
                 createdAt: serverTimestamp()
             });
-            toast({ title: 'Anfrage gesendet', description: 'Deine Freundschaftsanfrage wurde verschickt.' });
+            toast({ title: t('requestSent'), description: t('requestSentDescription') });
         } catch (e) {
             console.error(e);
         }
@@ -117,7 +120,7 @@ function ProfileContent() {
             const accountTitle = remoteUser.accountTitle ?? getAccountTitle(levelInfo.level);
 
             return {
-                username: remoteUser.username || 'Unbekannter Binder',
+                username: remoteUser.username || t('unknownBinder'),
                 equippedCosmetics: remoteUser.equippedCosmetics || { avatar: 'avatar_0', frame: 'frame_1', effect: 'effect_1', cardBack: 'sleeve_0', coin: 'coin_1', playmat: 'playmat_1' },
                 inventory: remoteUser.inventory || [],
                 xp: xp,
@@ -139,7 +142,7 @@ function ProfileContent() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <Loader2 className="h-12 w-12 text-primary animate-spin" />
-                <p className="text-muted-foreground animate-pulse">Suche Binder in den Archiven...</p>
+                <p className="text-muted-foreground animate-pulse">{t('searchingBinderInArchives')}</p>
             </div>
         );
     }
@@ -147,10 +150,10 @@ function ProfileContent() {
     if (!profileData) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
-                <h1 className="text-4xl font-bold text-destructive">Binder nicht gefunden</h1>
-                <p className="text-muted-foreground max-w-md">Dieses Profil existiert nicht oder die Daten sind im Aether verschollen.</p>
+                <h1 className="text-4xl font-bold text-destructive">{t('profileNotFound')}</h1>
+                <p className="text-muted-foreground max-w-md">{t('profileNotFoundDescription')}</p>
                 <Link href="/game">
-                    <Button variant="tcg"><ArrowLeft className="mr-2 h-4 w-4"/> Zum Hauptmenü</Button>
+                    <Button variant="tcg"><ArrowLeft className="mr-2 h-4 w-4"/> {t('toMainMenu')}</Button>
                 </Link>
             </div>
         );
@@ -201,8 +204,8 @@ function ProfileContent() {
                     {/* Level Progress */}
                     <div className="w-64 mt-4">
                         <div className="flex justify-between items-center text-xs text-muted-foreground mb-1">
-                            <span className="font-bold text-yellow-400">Level {profileData.level}</span>
-                            <span>{profileData.xpInCurrentLevel.toLocaleString('de-DE')} / {profileData.xpPerLevel.toLocaleString('de-DE')} EP</span>
+                            <span className="font-bold text-yellow-400">{t('levelShort', { level: profileData.level })}</span>
+                            <span>{profileData.xpInCurrentLevel.toLocaleString(numberLocale)} / {profileData.xpPerLevel.toLocaleString(numberLocale)} {t('xpShort')}</span>
                         </div>
                         <Progress value={profileData.xpProgress} className="h-3"/>
                     </div>
@@ -212,80 +215,80 @@ function ProfileContent() {
                     <div className="flex items-center gap-4 mt-4">
                         {isFriend ? (
                             <Button variant="outline" disabled className="gap-2 border-green-500 text-green-500">
-                                <Check className="h-4 w-4" /> Freunde
+                                <Check className="h-4 w-4" /> {t('alreadyFriends')}
                             </Button>
                         ) : (
-                            <Button 
-                                variant="outline" 
-                                className="gap-2" 
+                            <Button
+                                variant="outline"
+                                className="gap-2"
                                 onClick={handleAddFriend}
                                 disabled={hasSentRequest}
                             >
-                                <UserPlus className="h-4 w-4" /> 
-                                {hasSentRequest ? 'Anfrage gesendet' : 'Freund hinzufügen'}
+                                <UserPlus className="h-4 w-4" />
+                                {hasSentRequest ? t('requestSent') : t('addFriend')}
                             </Button>
                         )}
-                        <Button 
-                            variant="secondary" 
+                        <Button
+                            variant="secondary"
                             className="gap-2"
                             onClick={handleStartChat}
                             disabled={!isFriend}
                         >
-                            <Send className="h-4 w-4" /> Nachricht senden
+                            <Send className="h-4 w-4" /> {t('sendMessageAction')}
                         </Button>
                     </div>
                 )}
                 {isOwnProfile && (
                     <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                        <ShieldCheck className="h-3 w-3" /> Echte Cloud-Statistiken sind jetzt aktiv.
+                        <ShieldCheck className="h-3 w-3" /> {t('cloudStatsActive')}
                     </p>
                 )}
             </div>
 
             {/* Stats Section */}
             <div className="mt-16 w-full max-w-5xl">
-                <h2 className="text-3xl font-bold text-center mb-8">Statistiken</h2>
+                <h2 className="text-3xl font-bold text-center mb-8">{t('statistics')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
                     <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
                         <CardHeader>
                             <CardTitle className="flex items-center justify-center gap-2 text-xl">
                                 <Swords className="h-6 w-6"/>
-                                Kampf-Bilanz
+                                {t('combatRecord')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             <p className="text-4xl font-bold text-primary">{profileData.gamesPlayed}</p>
-                            <p className="text-muted-foreground">Spiele gesamt</p>
+                            <p className="text-muted-foreground">{t('gamesTotal')}</p>
                             <div className="flex justify-around pt-2 text-lg">
                                 <div>
                                     <p className="font-bold text-green-400">{profileData.wins}</p>
-                                    <p className="text-xs text-muted-foreground">Siege</p>
+                                    <p className="text-xs text-muted-foreground">{t('winsLabel')}</p>
                                 </div>
                                 <div>
                                     <p className="font-bold text-red-400">{profileData.losses}</p>
-                                    <p className="text-xs text-muted-foreground">Niederlagen</p>
+                                    <p className="text-xs text-muted-foreground">{t('lossesLabel')}</p>
                                 </div>
                             </div>
-                            <p className="text-sm text-muted-foreground pt-2">Sieg-Rate: {winRate}%</p>
+                            <p className="text-sm text-muted-foreground pt-2">{t('winRateLabel', { rate: winRate })}</p>
                         </CardContent>
                     </Card>
                     <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
                         <CardHeader>
                             <CardTitle className="flex items-center justify-center gap-2 text-xl">
                                 <Sparkles className="h-6 w-6 text-cyan-400"/>
-                                Erfahrung
+                                {t('experienceLabel')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <p className="text-4xl font-bold text-cyan-400">{profileData.xp.toLocaleString('de-DE')}</p>
-                            <p className="text-muted-foreground">Gesamt-EP</p>
+                            <p className="text-4xl font-bold text-cyan-400">{profileData.xp.toLocaleString(numberLocale)}</p>
+                            <p className="text-muted-foreground">{t('totalXp')}</p>
                             <div className="flex justify-around pt-2 text-lg">
                                 <div>
-                                    <p className="font-bold text-white">Level {profileData.level}</p>
-                                    <p className="text-xs text-muted-foreground">Aktuelle Stufe</p>
+                                    <p className="font-bold text-white">{t('levelShort', { level: profileData.level })}</p>
+                                    <p className="text-xs text-muted-foreground">{t('currentLevel')}</p>
                                 </div>
                             </div>
-                            <p className="text-sm text-muted-foreground pt-2">{t('nextLevelAt', { xp: profileData.totalXpForNextLevel.toLocaleString('de-DE') })}</p>
+                            <p className="text-sm text-muted-foreground pt-2">{t('nextLevelAt', { xp: profileData.totalXpForNextLevel.toLocaleString(numberLocale) })}</p>
                             <p className="text-sm text-muted-foreground">{t('nextReward')}: {formatLevelReward(getNextLevelReward(profileData.level))}</p>
                         </CardContent>
                     </Card>
@@ -293,15 +296,15 @@ function ProfileContent() {
                         <CardHeader>
                             <CardTitle className="flex items-center justify-center gap-2 text-xl">
                                 <BookOpen className="h-6 w-6"/>
-                                Sammlung
+                                {t('collection')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             <p className="text-4xl font-bold text-primary">{[...new Set(profileData.inventory)].length}</p>
-                            <p className="text-muted-foreground">Einzigartige Karten im Besitz</p>
+                            <p className="text-muted-foreground">{t('uniqueCardsOwnedLabel')}</p>
                             {isOwnProfile && (
                                 <Link href="/collection" passHref>
-                                    <Button variant="link" className="mt-2">Zur Sammlung</Button>
+                                    <Button variant="link" className="mt-2">{t('toCollection')}</Button>
                                 </Link>
                             )}
                         </CardContent>
@@ -313,7 +316,7 @@ function ProfileContent() {
                 <Link href={isOwnProfile ? "/game" : "/marketplace"} passHref>
                     <Button variant="tcg">
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        {isOwnProfile ? "Zurück zum Hauptmenü" : "Zurück zum Marktplatz"}
+                        {isOwnProfile ? t('backToMainMenu') : t('backToMarketplace')}
                     </Button>
                 </Link>
             </div>

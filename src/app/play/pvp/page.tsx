@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAppContext } from '@/context/AppContext';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, query, where, serverTimestamp, updateDoc, doc, arrayUnion, deleteDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Swords, Users, PlusCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Swords, Users, PlusCircle, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { playSound } from '@/lib/audio';
@@ -20,8 +20,9 @@ export default function PvpLobbyPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
-  const [isSearching, setIsSearching] = useState(false);
-  
+  const [isCreating, setIsCreating] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
   // Listen for active rooms
   const roomsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -30,11 +31,61 @@ export default function PvpLobbyPage() {
 
   const { data: rooms, loading } = useCollection(roomsQuery);
 
+  // Determine whether the current user already has an open room (host, waiting for opponent).
+  // This is the single source of truth — we no longer rely on a local isSearching flag that
+  // could go out of sync (page reload, navigation, multiple tabs) with what's in Firestore.
+  const myOpenRoom = useMemo(() => {
+    if (!user || !rooms) return null;
+    return rooms.find((r: any) => r.players?.[0] === user.uid && r.players?.length === 1) ?? null;
+  }, [rooms, user]);
+
+  // When my own room receives a second player, redirect into the duel.
+  useEffect(() => {
+    if (!user || !rooms) return;
+    const startedRoom = rooms.find((r: any) =>
+      r.players?.includes(user.uid) && r.players.length === 2,
+    );
+    if (startedRoom) {
+      router.push(`/play/pvp/${startedRoom.id}`);
+    }
+  }, [rooms, user, router]);
+
+  // Auto-delete the open room when the user leaves the page (navigation OR tab close).
+  // Without this the room would linger in Firestore and clutter every other player's lobby.
+  // We use a ref so the cleanup always sees the latest room id without re-binding listeners.
+  const myOpenRoomIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    myOpenRoomIdRef.current = myOpenRoom?.id ?? null;
+  }, [myOpenRoom]);
+
+  useEffect(() => {
+    if (!firestore) return;
+
+    const deleteOpenRoom = () => {
+      const roomId = myOpenRoomIdRef.current;
+      if (!roomId) return;
+      // Fire-and-forget — we can't await synchronous unload handlers.
+      void deleteDoc(doc(firestore, 'rooms', roomId)).catch(() => {});
+      myOpenRoomIdRef.current = null;
+    };
+
+    const onBeforeUnload = () => deleteOpenRoom();
+    window.addEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('pagehide', onBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('pagehide', onBeforeUnload);
+      // Soft navigation away from /play/pvp also drops the open room.
+      deleteOpenRoom();
+    };
+  }, [firestore]);
+
   const handleCreateRoom = async () => {
-    if (!firestore || !user || isSearching) return;
-    setIsSearching(true);
+    if (!firestore || !user || isCreating || myOpenRoom) return;
+    setIsCreating(true);
     playSound('selection');
-    
+
     try {
       const roomData = {
         players: [user.uid],
@@ -43,25 +94,36 @@ export default function PvpLobbyPage() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
-      const docRef = await addDoc(collection(firestore, 'rooms'), roomData);
-      
-      // Wait for someone to join
-      const unsubscribe = onSnapshot(docRef, (snap) => {
-        const data = snap.data();
-        if (data && data.players.length === 2) {
-          unsubscribe();
-          router.push(`/play/pvp/${docRef.id}`);
-        }
-      });
+      await addDoc(collection(firestore, 'rooms'), roomData);
+      // Don't subscribe here — the rooms collection listener already drives the join redirect
+      // and the "you have an open room" UI state.
     } catch (e) {
-      setIsSearching(false);
+      console.error('Error creating room:', e);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCancelRoom = async () => {
+    if (!firestore || !myOpenRoom || isCancelling) return;
+    setIsCancelling(true);
+    playSound('negative');
+    try {
+      await deleteDoc(doc(firestore, 'rooms', myOpenRoom.id));
+    } catch (e) {
+      console.error('Error cancelling room:', e);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
   const handleJoinRoom = async (roomId: string) => {
     if (!firestore || !user) return;
+    // A user with their own open room shouldn't be able to join another room — they'd leave
+    // their lobby slot orphaned. Force them to cancel first.
+    if (myOpenRoom) return;
     playSound('selection');
-    
+
     try {
         const roomRef = doc(firestore, 'rooms', roomId);
         await updateDoc(roomRef, {
@@ -112,14 +174,14 @@ export default function PvpLobbyPage() {
               <CardDescription>{t('createSessionDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <Button 
-                size="lg" 
-                className="w-full h-24 text-xl" 
-                variant={isSearching ? "secondary" : "tcg"}
+              <Button
+                size="lg"
+                className="w-full h-24 text-xl"
+                variant={myOpenRoom ? "secondary" : "tcg"}
                 onClick={handleCreateRoom}
-                disabled={isSearching}
+                disabled={isCreating || !!myOpenRoom}
               >
-                {isSearching ? (
+                {isCreating || myOpenRoom ? (
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="animate-spin h-6 w-6" />
                     <span>{t('searchingOpponent')}</span>
@@ -131,8 +193,16 @@ export default function PvpLobbyPage() {
                   </div>
                 )}
               </Button>
-              {isSearching && (
-                <Button variant="ghost" onClick={() => setIsSearching(false)}>{t('cancel')}</Button>
+              {myOpenRoom && (
+                <Button
+                  variant="outline"
+                  className="gap-2 border-destructive/60 text-destructive hover:bg-destructive/10"
+                  onClick={handleCancelRoom}
+                  disabled={isCancelling}
+                >
+                  {isCancelling ? <Loader2 className="animate-spin h-4 w-4" /> : <X className="h-4 w-4" />}
+                  {t('cancel')}
+                </Button>
               )}
             </CardContent>
           </Card>
@@ -167,7 +237,11 @@ export default function PvpLobbyPage() {
                             <p className="text-xs text-muted-foreground">{t('waitingForParticipant')}</p>
                             </div>
                         </div>
-                        <Button variant="outline" onClick={() => handleJoinRoom(room.id)} disabled={room.players.includes(user?.uid)}>
+                        <Button
+                            variant="outline"
+                            onClick={() => handleJoinRoom(room.id)}
+                            disabled={room.players.includes(user?.uid) || !!myOpenRoom}
+                        >
                             {room.players.includes(user?.uid) ? t('yourRoom') : t('join')}
                         </Button>
                         </div>

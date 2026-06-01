@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { MASTER_DB } from '@/lib/cards';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import { useI18n } from '@/i18n';
 
 const MAX_COPIES = 3;
 const MAX_LEGENDARIES = 1;
@@ -36,14 +37,15 @@ function DeckBuilderContent() {
   const { inventory, getCardById, savedDecks, saveDeck, updateDeck } = useAppContext();
   const router = useRouter();
   const { toast } = useToast();
+  const { t, cardType: tCardType, rarity: tRarity, element: tElement } = useI18n();
   const searchParams = useSearchParams();
   const starterDeckId = searchParams.get('starter');
   const deckId = searchParams.get('deckId');
-  
+
   const isStarterDeckMode = !!starterDeckId;
 
   const [deck, setDeck] = useState<CardData[]>([]);
-  const [deckName, setDeckName] = useState('Neues Deck');
+  const [deckName, setDeckName] = useState(() => t('newDeckDefaultName'));
   const [searchTerm, setSearchTerm] = useState('');
   const [elementFilter, setElementFilter] = useState<Element | 'all'>('all');
   const [rarityFilter, setRarityFilter] = useState<Rarity | 'all'>('all');
@@ -162,22 +164,22 @@ function DeckBuilderContent() {
   const validationIssues = useMemo(() => {
     const issues: string[] = [];
     if (deck.length !== DECK_SIZE) {
-      issues.push(`Deck muss genau ${DECK_SIZE} Karten enthalten.`);
+      issues.push(t('deckMustHaveCards', { size: DECK_SIZE }));
     }
      if (numAetherCards !== AETHER_CARDS_REQUIRED) {
-      issues.push(`Deck muss genau ${AETHER_CARDS_REQUIRED} Aether-Karten enthalten.`);
+      issues.push(t('deckMustHaveAetherCards', { required: AETHER_CARDS_REQUIRED }));
     }
     if (numLegendaries > MAX_LEGENDARIES) {
-      issues.push(`Deck darf maximal ${MAX_LEGENDARIES} legendäre Karte enthalten.`);
+      issues.push(t('deckMaxLegendaries', { max: MAX_LEGENDARIES }));
     }
     Object.entries(deckCounts).forEach(([id, count]) => {
       const card = getCardById(Number(id));
       if (card?.type !== 'Aether' && count > MAX_COPIES) {
-        issues.push(`Zu viele Kopien von "${card?.name}" (max. ${MAX_COPIES}).`);
+        issues.push(t('deckTooManyCopies', { name: card?.name ?? '', max: MAX_COPIES }));
       }
     });
     return issues;
-  }, [deck.length, numLegendaries, deckCounts, getCardById, numAetherCards]);
+  }, [deck.length, numLegendaries, deckCounts, getCardById, numAetherCards, t]);
   
   const addCardToDeck = (card: CardData) => {
     const countInDeck = deckCounts[card.id] || 0;
@@ -234,8 +236,8 @@ function DeckBuilderContent() {
     if (validationIssues.length > 0) {
       playSound('negative');
       toast({
-        title: 'Deck ungültig!',
-        description: 'Bitte behebe die Fehler in deinem Deck, bevor du speicherst.',
+        title: t('deckInvalidTitle'),
+        description: t('deckInvalidDescription'),
         variant: 'destructive',
       });
       return;
@@ -244,10 +246,10 @@ function DeckBuilderContent() {
     const cardIds = deck.map(c => c.id);
     if (deckId) {
       updateDeck(deckId, deckName, cardIds);
-      toast({ title: 'Deck aktualisiert!', description: `Dein Deck "${deckName}" wurde erfolgreich gespeichert.` });
+      toast({ title: t('deckUpdatedTitle'), description: t('deckUpdatedDescription', { name: deckName }) });
     } else {
       saveDeck(deckName, cardIds);
-      toast({ title: 'Deck gespeichert!', description: `Dein neues Deck "${deckName}" wurde erstellt.` });
+      toast({ title: t('deckSavedTitle'), description: t('deckSavedDescription', { name: deckName }) });
     }
     playSound('positive');
     router.push('/deck-builder');
@@ -293,7 +295,7 @@ function DeckBuilderContent() {
            <Badge className="absolute top-2 right-2 select-none" variant={countInDeck > 0 ? 'default' : 'secondary'}>
                {countInDeck} / {totalAvailableForDeck}
            </Badge>
-           {card.isLoaner && <Badge className="absolute top-2 left-2 select-none" variant='outline'>Leihgabe</Badge>}
+           {card.isLoaner && <Badge className="absolute top-2 left-2 select-none" variant='outline'>{t('loanBadge')}</Badge>}
         </div>
     );
   };
@@ -304,58 +306,58 @@ function DeckBuilderContent() {
       <UICard className="w-full md:w-2/3 flex flex-col bg-card/80 backdrop-blur-sm">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Kartensammlung</CardTitle>
+            <CardTitle>{t('cardCollection')}</CardTitle>
             <Link href="/deck-builder" passHref className="inline-block">
-              <Button variant="tcg"><ArrowLeft className="mr-2 h-4 w-4" /> Zurück zur Deck-Übersicht</Button>
+              <Button variant="tcg"><ArrowLeft className="mr-2 h-4 w-4" /> {t('backToDeckOverview')}</Button>
             </Link>
           </div>
           <div className='flex gap-2 mt-2 flex-wrap'>
             <Input
-              placeholder="Karten suchen..."
+              placeholder={t('searchCards')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex-grow min-w-[200px]"
             />
             <Select value={sortOrder} onValueChange={setSortOrder} modal={false}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Sortieren nach" /></SelectTrigger>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder={t('sortBy')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="cost">Kosten</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="rarity">Seltenheit</SelectItem>
-                <SelectItem value="number">Kartennummer</SelectItem>
-                <SelectItem value="type">Typ</SelectItem>
-                <SelectItem value="atk">Angriff</SelectItem>
-                <SelectItem value="hp">Leben</SelectItem>
+                <SelectItem value="cost">{t('cost')}</SelectItem>
+                <SelectItem value="name">{t('name')}</SelectItem>
+                <SelectItem value="rarity">{t('rarity')}</SelectItem>
+                <SelectItem value="number">{t('cardNumber')}</SelectItem>
+                <SelectItem value="type">{t('type')}</SelectItem>
+                <SelectItem value="atk">{t('attack')}</SelectItem>
+                <SelectItem value="hp">{t('health')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={elementFilter} onValueChange={(value) => setElementFilter(value as Element | 'all')} modal={false}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Element" /></SelectTrigger>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder={t('element')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle Elemente</SelectItem>
-                {availableElements.map(element => (<SelectItem key={element} value={element}>{element}</SelectItem>))}
+                <SelectItem value="all">{t('allElements')}</SelectItem>
+                {availableElements.map(element => (<SelectItem key={element} value={element}>{tElement(element)}</SelectItem>))}
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as CardType | 'all')} modal={false}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Typ" /></SelectTrigger>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder={t('type')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle Typen</SelectItem>
-                <SelectItem value="Unit">Einheit</SelectItem>
-                <SelectItem value="Spell">Zauber</SelectItem>
-                <SelectItem value="Trap">Falle</SelectItem>
-                <SelectItem value="Aether">Aether</SelectItem>
-                <SelectItem value="Relic">Relic</SelectItem>
+                <SelectItem value="all">{t('allTypes')}</SelectItem>
+                <SelectItem value="Unit">{tCardType('Unit')}</SelectItem>
+                <SelectItem value="Spell">{tCardType('Spell')}</SelectItem>
+                <SelectItem value="Trap">{tCardType('Trap')}</SelectItem>
+                <SelectItem value="Aether">{tCardType('Aether')}</SelectItem>
+                <SelectItem value="Relic">{tCardType('Relic')}</SelectItem>
               </SelectContent>
             </Select>
              <Select value={rarityFilter} onValueChange={(value) => setRarityFilter(value as Rarity | 'all')} modal={false}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Seltenheit" /></SelectTrigger>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder={t('rarity')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle Seltenheiten</SelectItem>
-                <SelectItem value="Common">Gewöhnlich</SelectItem>
-                <SelectItem value="Uncommon">Ungewöhnlich</SelectItem>
-                <SelectItem value="Rare">Selten</SelectItem>
-                <SelectItem value="Epic">Episch</SelectItem>
-                <SelectItem value="Legendary">Legendär</SelectItem>
-                <SelectItem value="GOD">Gott</SelectItem>
+                <SelectItem value="all">{t('allRarities')}</SelectItem>
+                <SelectItem value="Common">{tRarity('Common')}</SelectItem>
+                <SelectItem value="Uncommon">{tRarity('Uncommon')}</SelectItem>
+                <SelectItem value="Rare">{tRarity('Rare')}</SelectItem>
+                <SelectItem value="Epic">{tRarity('Epic')}</SelectItem>
+                <SelectItem value="Legendary">{tRarity('Legendary')}</SelectItem>
+                <SelectItem value="GOD">{tRarity('GOD')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -367,7 +369,7 @@ function DeckBuilderContent() {
                 {sortedCollection.map(card => renderCard(card))}
               </div>
             ) : (
-              <div className="text-center py-20"><p className="text-xl text-muted-foreground">Keine Karten für deine Filter gefunden.</p></div>
+              <div className="text-center py-20"><p className="text-xl text-muted-foreground">{t('noCardsForFilters')}</p></div>
             )}
           </ScrollArea>
         </CardContent>
@@ -382,7 +384,14 @@ function DeckBuilderContent() {
                 className="text-lg font-bold p-0 border-none focus:ring-0 bg-transparent"
               />
             <CardDescription>
-              {deck.length} / {DECK_SIZE} Karten | {numAetherCards} / {AETHER_CARDS_REQUIRED} Aether | {numLegendaries} / {MAX_LEGENDARIES} Legendär
+              {t('deckSummary', {
+                count: deck.length,
+                size: DECK_SIZE,
+                aether: numAetherCards,
+                aetherReq: AETHER_CARDS_REQUIRED,
+                leg: numLegendaries,
+                maxLeg: MAX_LEGENDARIES,
+              })}
             </CardDescription>
           </CardHeader>
           <Separator />
@@ -412,7 +421,7 @@ function DeckBuilderContent() {
           <div className="p-4 space-y-2">
             {validationIssues.length > 0 && (
                <Alert variant="destructive">
-                <AlertTitle>Deck-Regeln verletzt</AlertTitle>
+                <AlertTitle>{t('deckRulesViolated')}</AlertTitle>
                 <AlertDescription>
                   <ul className="list-disc pl-4">
                     {validationIssues.map((issue, i) => <li key={i}>{issue}</li>)}
@@ -420,10 +429,10 @@ function DeckBuilderContent() {
                 </AlertDescription>
               </Alert>
             )}
-            <Button variant="tcg" className="w-full" onClick={handleSaveDeck}>Deck speichern</Button>
+            <Button variant="tcg" className="w-full" onClick={handleSaveDeck}>{t('saveDeckAction')}</Button>
              <Button className="w-full" variant="destructive" onClick={() => { setDeck([]); playSound('negative'); }}>
               <Trash2 className="mr-2 h-4 w-4"/>
-              Deck leeren
+              {t('emptyDeckAction')}
             </Button>
           </div>
         </UICard>
@@ -442,7 +451,7 @@ export default function DeckBuilderPage() {
             data-ai-hint="fantasy library"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/80 to-background z-0"></div>
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="flex justify-center py-20"><span className="text-muted-foreground">...</span></div>}>
           <DeckBuilderContent />
         </Suspense>
     </div>

@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { produce } from 'immer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -11,84 +10,116 @@ import { cn } from '@/lib/utils';
 import GameBoard, { createInitialState } from '@/components/game/GameBoard';
 import { StarterDecks } from '@/lib/decks';
 import { GameCard, GameState } from '@/lib/types';
-import { MASTER_DB } from '@/lib/cards';
 import { useAppContext, type AccountXpAwardResult } from '@/context/AppContext';
-import { useI18n } from '@/i18n';
+import { TranslationKey, useI18n } from '@/i18n';
 
-const tutorialSteps = [
+type TutorialStep = {
+    id: string;
+    /** i18n key for the spirit dialogue. Omit for purely-mechanical await steps. */
+    textKey?: TranslationKey;
+    /** i18n key for the action button (only intro + victory have one). */
+    buttonTextKey?: TranslationKey;
+    /** Auto-advance after the typing animation finishes. */
+    autoAdvance?: boolean;
+    /** Delay before auto-advance. */
+    delay?: number;
+    /** CSS selector of the element to highlight (lifted above the dim overlay). */
+    highlightSelector?: string;
+    /** CSS selector of the drop zone that accepts the highlighted card. */
+    dropZoneSelector?: string;
+};
+
+const tutorialSteps: TutorialStep[] = [
     // Player Turn 1
-    { id: 'intro', text: 'Willkommen, Beschwörer. Ich bin ein Geist des Aethers. Bist du bereit, die Grundlagen zu lernen?', buttonText: 'Tutorial starten' },
-    { id: 'start-game', text: 'Du bist am Zug.', autoAdvance: true, delay: 1500 },
-    { id: 'draw-card-prompt', text: 'Du ziehst eine Karte.', autoAdvance: true, delay: 1500 },
-    { id: 'play-aether', text: 'Spiele als erstes eine Aether-Quelle, um deinen Aether-Vorrat aufzufüllen.', highlightSelector: '#card-in-hand-80', dropZoneSelector: '.aether-zone' },
-    { id: 'play-trap', text: 'Gut. Du hast nicht genug Aether für eine Einheit. Lege stattdessen eine Fallenkarte.', highlightSelector: '#card-in-hand-14', dropZoneSelector: '.trap-zone' },
-    { id: 'go-to-combat', text: 'Du kannst weiter nichts tun. Wechsle nun in die Kampfphase.', highlightSelector: '.end-turn-button' },
-    { id: 'end-turn', text: 'Da du diese Runde keine Einheit zum Angreifen hast, beende deinen Zug.', highlightSelector: '.end-turn-button' },
-    
+    { id: 'intro', textKey: 'tutorialIntro', buttonTextKey: 'tutorialStart' },
+    { id: 'start-game', textKey: 'tutorialStartGame', autoAdvance: true, delay: 1500 },
+    { id: 'draw-card-prompt', textKey: 'tutorialDrawCardPrompt', autoAdvance: true, delay: 1500 },
+    { id: 'play-aether', textKey: 'tutorialPlayAetherStep', highlightSelector: '#card-in-hand-80', dropZoneSelector: '.aether-zone' },
+    { id: 'play-trap', textKey: 'tutorialPlayTrapStep', highlightSelector: '#card-in-hand-14', dropZoneSelector: '.trap-zone' },
+    { id: 'go-to-combat', textKey: 'tutorialGoToCombatStep', highlightSelector: '.end-turn-button' },
+    { id: 'end-turn', textKey: 'tutorialEndTurnStep', highlightSelector: '.end-turn-button' },
+
     // Opponent Turn 1
-    { id: 'opponent-turn-1-start', text: 'Der Gegner ist am Zug.', autoAdvance: true, delay: 1500 },
-    { id: 'opponent-draws-1', text: 'Er zieht eine Karte.', autoAdvance: true, delay: 1500 },
-    { id: 'await-opponent-aether-1', text: '', autoAdvance: false },
-    { id: 'opponent-plays-aether-1', text: 'Er legt eine Aether-Quelle.', autoAdvance: true, delay: 2000 },
-    { id: 'await-opponent-unit-1', text: '', autoAdvance: false },
-    { id: 'opponent-plays-unit-1', text: 'Jetzt beschwört er eine Einheit.', autoAdvance: true, delay: 2000 },
-    { id: 'opponent-turn-end-1', text: 'Seine Einheit hat "Beschwörungskrankheit" und kann diesen Zug nicht angreifen, also beendet er seinen Zug.', autoAdvance: false },
+    { id: 'opponent-turn-1-start', textKey: 'tutorialOpponentTurn1Start', autoAdvance: true, delay: 1500 },
+    { id: 'opponent-draws-1', textKey: 'tutorialOpponentDraws', autoAdvance: true, delay: 1500 },
+    { id: 'await-opponent-aether-1', autoAdvance: false },
+    { id: 'opponent-plays-aether-1', textKey: 'tutorialOpponentPlaysAether', autoAdvance: true, delay: 2000 },
+    { id: 'await-opponent-unit-1', autoAdvance: false },
+    { id: 'opponent-plays-unit-1', textKey: 'tutorialOpponentPlaysUnit', autoAdvance: true, delay: 2000 },
+    { id: 'opponent-turn-end-1', textKey: 'tutorialOpponentTurnEnd1', autoAdvance: false },
 
     // Player Turn 2
-    { id: 'player-turn-2-start', text: 'Sehr gut. Du bist wieder am Zug.', autoAdvance: true, delay: 1500 },
-    { id: 'player-turn-2-draw', text: 'Du ziehst eine Karte.', autoAdvance: true, delay: 1500 },
-    { id: 'play-flamebounder', text: 'Dein Aether-Vorrat ist wieder aufgeladen. Beschwöre jetzt den Flamebounder!', highlightSelector: '#card-in-hand-4', dropZoneSelector: '.unit-zone' },
-    { id: 'player-turn-2-go-to-combat', text: 'Deine Einheit kann diesen Zug noch nicht angreifen. Wechsle in die Kampfphase.', highlightSelector: '.end-turn-button' },
-    { id: 'player-turn-2-end', text: 'Beende nun deinen Zug.', highlightSelector: '.end-turn-button' },
+    { id: 'player-turn-2-start', textKey: 'tutorialPlayer2Start', autoAdvance: true, delay: 1500 },
+    { id: 'player-turn-2-draw', textKey: 'tutorialPlayer2Draw', autoAdvance: true, delay: 1500 },
+    { id: 'play-flamebounder', textKey: 'tutorialPlayFlamebounder', highlightSelector: '#card-in-hand-4', dropZoneSelector: '.unit-zone' },
+    { id: 'player-turn-2-go-to-combat', textKey: 'tutorialPlayer2GoToCombat', highlightSelector: '.end-turn-button' },
+    { id: 'player-turn-2-end', textKey: 'tutorialPlayer2End', highlightSelector: '.end-turn-button' },
 
     // Opponent Turn 2
-    { id: 'opponent-turn-2-start', text: 'Der Gegner ist wieder dran.', autoAdvance: true, delay: 1500 },
-    { id: 'opponent-draws-2', text: 'Er zieht eine Karte.', autoAdvance: true, delay: 1500 },
-    { id: 'await-opponent-aether-2', text: '', autoAdvance: false },
-    { id: 'opponent-plays-aether-2', text: 'Er legt eine weitere Aether-Quelle...', autoAdvance: true, delay: 2000 },
-    { id: 'await-opponent-attack-2', text: '', autoAdvance: false },
-    { id: 'activate-trap', text: 'Der Gegner greift jetzt an! Aktiviere deine Falle, um den Angriff zu stoppen!', highlightSelector: '#activate-trap-button' },
-    { id: 'trap-success', text: 'Du hast die Einheit zerstört, bevor sie dich angreifen konnte!', autoAdvance: true, delay: 4000 },
+    { id: 'opponent-turn-2-start', textKey: 'tutorialOpponentTurn2Start', autoAdvance: true, delay: 1500 },
+    { id: 'opponent-draws-2', textKey: 'tutorialOpponentDraws', autoAdvance: true, delay: 1500 },
+    { id: 'await-opponent-aether-2', autoAdvance: false },
+    { id: 'opponent-plays-aether-2', textKey: 'tutorialOpponentPlaysAether2', autoAdvance: true, delay: 2000 },
+    { id: 'await-opponent-attack-2', autoAdvance: false },
+    { id: 'activate-trap', textKey: 'tutorialActivateTrap', highlightSelector: '#activate-trap-button' },
+    { id: 'trap-success', textKey: 'tutorialTrapSuccess', autoAdvance: true, delay: 4000 },
 
     // Player Turn 3
-    { id: 'player-turn-3-start', text: 'Perfekt abgewehrt. Du bist wieder dran.', autoAdvance: true, delay: 1500 },
-    { id: 'player-turn-3-draw', text: 'Du ziehst eine Karte.', autoAdvance: true, delay: 1500 },
-    { id: 'play-relic', text: 'Spiele die "Flaming Crown". Relikte sind permanente Karten, die das Spielgeschehen beeinflussen. Ziehe sie auf deinen Flamebounder.', highlightSelector: '#card-in-hand-16', dropZoneSelector: '[data-card-id="4"]' },
-    { id: 'play-ashwalker', text: 'Spiele nun den "Ashwalker".', highlightSelector: '#card-in-hand-3', dropZoneSelector: '.unit-zone' },
-    { id: 'use-overcharge', text: 'Nutze "Overcharge" auf deinem Flamebounder. Klicke die Karte an und wähle die Overcharge-Option im Detail-Fenster.', highlightSelector: '[data-card-id="4"]' },
-    { id: 'confirm-overcharge', text: 'Bestätige die Überladung. Du gibst Aether aus, um den Angriff zu erhöhen, aber die Einheit erleidet am Ende des Zuges Schaden.', highlightSelector: '.overcharge-confirm-button' },
-    { id: 'player-turn-3-go-to-combat', text: 'Sehr gut! Wechsle nun in die Kampfphase.', highlightSelector: '.end-turn-button' },
-    { id: 'declare-attack', text: 'Sehr gut! Dein Ashwalker ist noch erschöpft. Greife nur mit dem Flamebounder an, indem du ihn anklickst.', highlightSelector: '[data-card-id="4"]' },
-    { id: 'confirm-attack', text: 'Bestätige deinen Angriff, um den Gegner direkt anzugreifen!', highlightSelector: '.end-turn-button' },
-    
+    { id: 'player-turn-3-start', textKey: 'tutorialPlayer3Start', autoAdvance: true, delay: 1500 },
+    { id: 'player-turn-3-draw', textKey: 'tutorialPlayer3Draw', autoAdvance: true, delay: 1500 },
+    { id: 'play-relic', textKey: 'tutorialPlayRelic', highlightSelector: '#card-in-hand-16', dropZoneSelector: '[data-card-id="4"]' },
+    { id: 'play-ashwalker', textKey: 'tutorialPlayAshwalker', highlightSelector: '#card-in-hand-3', dropZoneSelector: '.unit-zone' },
+    { id: 'use-overcharge', textKey: 'tutorialUseOvercharge', highlightSelector: '[data-card-id="4"]' },
+    { id: 'confirm-overcharge', textKey: 'tutorialConfirmOvercharge', highlightSelector: '.overcharge-confirm-button' },
+    { id: 'player-turn-3-go-to-combat', textKey: 'tutorialPlayer3GoToCombat', highlightSelector: '.end-turn-button' },
+    { id: 'declare-attack', textKey: 'tutorialDeclareAttack', highlightSelector: '[data-card-id="4"]' },
+    { id: 'confirm-attack', textKey: 'tutorialConfirmAttack', highlightSelector: '.end-turn-button' },
+
     // Opponent Turn 3
-    { id: 'opponent-turn-3-start', text: 'Der Gegner überlebt knapp, aber er ist in die Enge getrieben.', autoAdvance: true, delay: 3000 },
-    { id: 'opponent-draws-3', text: 'Er zieht eine Karte.', autoAdvance: true, delay: 1500 },
-    { id: 'await-opponent-defender-3', text: '', autoAdvance: false },
-    { id: 'opponent-plays-defender', text: 'Er beschwört eine Einheit!', autoAdvance: true, delay: 2000 },
-    { id: 'opponent-turn-end-3', text: 'Sein Zug endet. Jetzt bist du am Drücker.', autoAdvance: false },
+    { id: 'opponent-turn-3-start', textKey: 'tutorialOpponentTurn3Start', autoAdvance: true, delay: 3000 },
+    { id: 'opponent-draws-3', textKey: 'tutorialOpponentDraws3', autoAdvance: true, delay: 1500 },
+    { id: 'await-opponent-defender-3', autoAdvance: false },
+    { id: 'opponent-plays-defender', textKey: 'tutorialOpponentPlaysDefender', autoAdvance: true, delay: 2000 },
+    { id: 'opponent-turn-end-3', textKey: 'tutorialOpponentTurnEnd3', autoAdvance: false },
 
     // Player Turn 4
-    { id: 'player-turn-4-draw', text: 'Du hast "Fireburst" auf der Hand! Ein mächtiger Zauber, der direkt Schaden verursacht.', autoAdvance: false },
-    { id: 'play-fireburst', text: 'Spiele Fireburst auf die gegnerische EInheit, umsie zu zerstören!', highlightSelector: '#card-in-hand-10', dropZoneSelector: '#opponent' },
-    { id: 'victory', text: 'Hervorragend! Du hast die Grundlagen gemeistert.', buttonText: 'Tutorial beenden' },
+    { id: 'player-turn-4-draw', textKey: 'tutorialPlayer4Draw', autoAdvance: false },
+    { id: 'play-fireburst', textKey: 'tutorialPlayFireburst', highlightSelector: '#card-in-hand-10', dropZoneSelector: '#opponent' },
+    { id: 'victory', textKey: 'tutorialVictory', buttonTextKey: 'tutorialFinish' },
 ];
+
+const HAND_ACTION_STEPS = new Set([
+    'play-aether', 'play-trap', 'play-flamebounder',
+    'play-relic', 'play-ashwalker', 'play-fireburst',
+]);
 
 const spiritFrames = [
     '/tutorial/spirit-1.png',
     '/tutorial/spirit-2.png',
     '/tutorial/spirit-3.png',
-    '/tutorial/spirit-2.png'
+    '/tutorial/spirit-2.png',
 ];
- 
+
 const spiritBlinkFrame = '/tutorial/spirit-0.png';
 const spiritSadFrame = '/tutorial/spirit-sad.png';
 
-const SpiritGuide = ({ step, onAction, isSpeaking, textToShow, phase, showButton, isStartingTutorial, isSad }: { step: typeof tutorialSteps[0], onAction: () => void, isSpeaking: boolean, textToShow: string, phase: 'intro' | 'playing', showButton: boolean, isStartingTutorial: boolean, isSad: boolean }) => {
+type SpiritGuideProps = {
+    step: TutorialStep;
+    onAction: () => void;
+    isSpeaking: boolean;
+    textToShow: string;
+    phase: 'intro' | 'playing';
+    showButton: boolean;
+    isStartingTutorial: boolean;
+    isSad: boolean;
+};
+
+const SpiritGuide = ({ step, onAction, isSpeaking, textToShow, phase, showButton, isStartingTutorial, isSad }: SpiritGuideProps) => {
+    const { t } = useI18n();
     const [frameIndex, setFrameIndex] = useState(0);
     const [isBlinking, setIsBlinking] = useState(false);
 
-    // Animations-Loop for speaking
+    // Animation loop for speaking
     useEffect(() => {
         if (!isSpeaking || isSad) {
             setFrameIndex(0);
@@ -120,7 +151,7 @@ const SpiritGuide = ({ step, onAction, isSpeaking, textToShow, phase, showButton
                 }, 150);
             }, nextBlink);
         };
-        
+
         blinkTimeout = scheduleBlink();
         return () => clearTimeout(blinkTimeout);
 
@@ -139,14 +170,14 @@ const SpiritGuide = ({ step, onAction, isSpeaking, textToShow, phase, showButton
             <div
                 className={cn(
                     "speech-bubble",
-                     (textToShow || isSpeaking) && "active"
+                    (textToShow || isSpeaking) && "active"
                 )}
             >
                 <p id="text-target" className="text-sm font-medium text-cyan-50 leading-relaxed text-center min-h-[60px]">
                     {textToShow}
                 </p>
             </div>
-            
+
             <div className="relative w-[200px] h-[200px]">
               <Image
                 src={currentSrc}
@@ -159,13 +190,13 @@ const SpiritGuide = ({ step, onAction, isSpeaking, textToShow, phase, showButton
               />
             </div>
 
-            {showButton && step.buttonText && (
+            {showButton && step.buttonTextKey && (
                 <div className={cn(
                     "mt-4 transition-opacity duration-500",
                     isStartingTutorial ? "opacity-0" : "opacity-100"
                 )}>
                     <Button onClick={onAction} variant="tcg" className="pointer-events-auto">
-                        {step.buttonText}
+                        {t(step.buttonTextKey)}
                     </Button>
                 </div>
             )}
@@ -214,8 +245,10 @@ export default function TutorialPage() {
         const step = tutorialSteps[index];
 
         setCurrentStepIndex(index);
-        
-        if (step.text) {
+
+        const fullText = step.textKey ? t(step.textKey) : '';
+
+        if (fullText) {
           setIsSpiritSpeaking(true);
           try {
               const audio = new Audio('/tutorial/listen.mp3');
@@ -232,9 +265,8 @@ export default function TutorialPage() {
         setShowIntroButton(false);
         setCurrentHighlight(undefined);
         setIsTutorialStepWithHandAction(false);
-        
+
         let i = 0;
-        const fullText = step.text;
 
         const typeEffect = () => {
             if (i <= fullText.length) {
@@ -244,7 +276,7 @@ export default function TutorialPage() {
                 typingTimeoutRef.current = setTimeout(typeEffect, 40);
             } else {
                 setIsSpiritSpeaking(false);
-                
+
                 if (step.id === 'intro' || step.id === 'victory') {
                     setShowIntroButton(true);
                 } else if (step.autoAdvance) {
@@ -252,28 +284,26 @@ export default function TutorialPage() {
                         advanceStep(index + 1);
                     }, step.delay || 1500);
                 } else {
-                    const isHandAction = ['play-aether', 'play-trap', 'play-flamebounder', 'play-relic', 'play-ashwalker', 'play-fireburst'].includes(step.id);
-                    setIsTutorialStepWithHandAction(isHandAction);
+                    setIsTutorialStepWithHandAction(HAND_ACTION_STEPS.has(step.id));
                     setCurrentHighlight(step.highlightSelector);
                 }
             }
         };
-        
-        if (!step.text) {
+
+        if (!fullText) {
              if (step.autoAdvance) {
                 typingTimeoutRef.current = setTimeout(() => {
                     advanceStep(index + 1);
                 }, step.delay || 1500);
             } else {
-                const isHandAction = ['play-aether', 'play-trap', 'play-flamebounder', 'play-relic', 'play-ashwalker', 'play-fireburst'].includes(step.id);
-                setIsTutorialStepWithHandAction(isHandAction);
+                setIsTutorialStepWithHandAction(HAND_ACTION_STEPS.has(step.id));
                 setCurrentHighlight(step.highlightSelector);
             }
         } else {
             typingTimeoutRef.current = setTimeout(typeEffect, 50);
         }
 
-    }, [currentStepIndex, finishTutorial]);
+    }, [currentStepIndex, finishTutorial, t]);
 
     const handleTutorialAction = useCallback((actionType: string, card?: GameCard): boolean => {
         const step = tutorialSteps[currentStepIndex];
@@ -288,7 +318,7 @@ export default function TutorialPage() {
             setTimeout(() => setIsSpiritSad(false), 400);
             return true;
         }
-       
+
         if (actionType === 'SUCCESS') {
             setTextToShow('');
             setCurrentHighlight(undefined);
@@ -316,10 +346,10 @@ export default function TutorialPage() {
                 if (actionType === expectedAction) isActionCorrect = true;
             }
         }
-       
+
         if (step.id === 'use-overcharge' && actionType === 'clickCard-4') {
              isActionCorrect = true;
-             return true; 
+             return true;
         }
 
         switch (step.id) {
@@ -340,7 +370,7 @@ export default function TutorialPage() {
             case 'play-fireburst': checkAction('playSpell', 10); break;
             case 'victory': finishTutorial(); return true;
         }
-       
+
         if (!isActionCorrect) {
             if (!actionType.startsWith('AI_')) {
                  playSound('negative');
@@ -355,25 +385,70 @@ export default function TutorialPage() {
             advanceStep(0);
         }
     }, [tutorialPhase, advanceStep, isStartingTutorial]);
-    
+
+    // Mirrors the current highlight selector into the DOM as a CSS class.
+    // Without this, only #card-in-hand-XX selectors work (because <CardInHand /> handles its own
+    // isHighlighted prop) — every other target (end-turn button, on-board unit, trap button,
+    // overcharge dialog button) would be hidden under the dim overlay with no glow to follow.
+    // The interval re-applies the class whenever the DOM changes (button shows up later, unit
+    // gets re-rendered after combat, etc).
+    useEffect(() => {
+        const MARK = 'tutorial-highlight-dynamic';
+        const HIGHLIGHT = 'tutorial-highlight';
+
+        const cleanup = () => {
+            document.querySelectorAll(`.${MARK}`).forEach((el) => {
+                el.classList.remove(HIGHLIGHT, MARK);
+            });
+        };
+
+        if (!currentHighlight) {
+            cleanup();
+            return;
+        }
+
+        const apply = () => {
+            // First sweep: remove our prior dynamic highlights so we don't leave stale glows
+            // on elements that no longer match the selector.
+            document.querySelectorAll(`.${MARK}`).forEach((el) => {
+                el.classList.remove(HIGHLIGHT, MARK);
+            });
+            try {
+                const targets = document.querySelectorAll(currentHighlight);
+                targets.forEach((el) => {
+                    el.classList.add(HIGHLIGHT, MARK);
+                });
+            } catch {
+                // Invalid selector — ignore.
+            }
+        };
+
+        apply();
+        const interval = setInterval(apply, 200);
+        return () => {
+            clearInterval(interval);
+            cleanup();
+        };
+    }, [currentHighlight]);
+
      useEffect(() => {
         if (!gameState || tutorialPhase !== 'playing') return;
 
         const currentStep = tutorialSteps[currentStepIndex];
 
         const { players, phase, activePlayer, pendingResponse, overchargeState } = gameState;
-        
+
         if (phase === 'start' && currentStep.id === 'intro') {
              advanceStep(1); // Go to 'start-game'
              return;
         }
-        
+
         const isPlayerDrawStep = ['draw-card-prompt', 'player-turn-2-draw', 'player-turn-3-draw', 'player-turn-4-draw'].includes(currentStep.id);
         if (isPlayerDrawStep && phase === 'main') {
             setTimeout(() => { if (!isSpiritSpeaking) advanceStep() }, 500);
             return;
         }
-        
+
         if (currentStep.id === 'confirm-attack' && activePlayer === 'opponent' && phase === 'start') {
             advanceStep();
             return;
@@ -417,7 +492,7 @@ export default function TutorialPage() {
                 return;
             }
         }
-        
+
         if (activePlayer === 'player' && phase === 'start') {
             if (currentStep.id === 'opponent-turn-end-1' || currentStep.id === 'opponent-turn-end-3' || currentStep.id === 'trap-success') {
                 advanceStep(); // to next player turn
@@ -457,18 +532,18 @@ export default function TutorialPage() {
     if (tutorialPhase === 'finished') {
         return (
              <div className="w-screen h-screen bg-black flex flex-col items-center justify-center text-center p-8">
-                 <h1 className="text-5xl font-bold title-gradient uppercase">Tutorial Abgeschlossen!</h1>
-                 <p className="text-lg text-muted-foreground mt-4 max-w-2xl">{tutorialSteps.find(s => s.id === 'victory')?.text}</p>
+                 <h1 className="text-5xl font-bold title-gradient uppercase">{t('tutorialCompleteTitle')}</h1>
+                 <p className="text-lg text-muted-foreground mt-4 max-w-2xl">{t('tutorialVictory')}</p>
                  {tutorialXpAward && tutorialXpAward.xpGained > 0 && (
                     <p className="text-cyan-300 font-bold mt-4">{t('xpGained', { amount: tutorialXpAward.xpGained })}</p>
                  )}
                  <Link href="/play" className="mt-8">
-                     <Button variant="tcg">Zurück zur Spielauswahl</Button>
+                     <Button variant="tcg">{t('tutorialBackToPlay')}</Button>
                  </Link>
              </div>
         )
     }
-    
+
     return (
         <div className="w-screen h-screen overflow-hidden relative bg-black">
              <div
@@ -515,7 +590,3 @@ export default function TutorialPage() {
         </div>
     );
 }
-
-    
-
-    

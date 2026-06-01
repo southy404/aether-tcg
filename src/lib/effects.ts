@@ -1040,20 +1040,22 @@ export const completeCardPlay = (draft: GameState, cardInstanceId: string, owner
     let success = false;
     player.aether.current -= cardCost;
 
-    if (cardDataFromHand.type === 'Unit' && target.type === 'zone' && target.zone === 'Unit' && player.unitZone[target.position] == null) {
+    if (cardDataFromHand.type === 'Unit' && target.type === 'zone' && target.zone === 'Unit' && (player.unitZone[target.position] == null || player.unitZone[target.position]?.id === 999)) {
         const targetSlot = player.unitZone[target.position];
         if (targetSlot == null || targetSlot?.id === 999) {
             const wasParasite = targetSlot?.id === 999;
-            
+
             const isExhausted = cardDataFromHand.id !== 65 && !player.nextUnitHasHaste;
             const newUnit: GameCard = { ...cardDataFromHand, isExhausted, position: target.position, effect: 'summon' };
-            
+
             if (wasParasite) {
                 addLogAndToast(draft, [`Parasit wird von `, {type: 'card', cardId: cardDataFromHand.id, content: cardDataFromHand.name}, ` absorbiert und verleiht +1/+1.`], 'effect', ownerId);
                 newUnit.atk = (newUnit.atk || 0) + 1;
                 newUnit.hp = (newUnit.hp || 0) + 1;
                 newUnit.currentAtk = (newUnit.currentAtk || 0) + 1;
                 newUnit.currentHp = (newUnit.currentHp || 0) + 1;
+                // Move the sacrificed Parasite token to the graveyard
+                player.graveyard.push(targetSlot);
             }
 
             player.unitZone[target.position] = newUnit;

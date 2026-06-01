@@ -35,10 +35,14 @@ const defaultEquipped: EquippedCosmetics = {
 interface AppContextType {
   username: string;
   setUsername: (name: string) => void;
-  gems: number; 
+  gems: number;
   setGems: React.Dispatch<React.SetStateAction<number>>;
   gold: number;
   setGold: React.Dispatch<React.SetStateAction<number>>;
+  /** Deduct gold and persist to Firestore. Returns true on success, false if balance insufficient. */
+  spendGold: (amount: number) => boolean;
+  /** Deduct merits and persist to Firestore. Returns true on success, false if balance insufficient. */
+  spendMerits: (amount: number) => boolean;
   inventory: number[];
   addCardsToInventory: (cardIds: number[]) => void;
   getCardById: (id: number) => CardData | undefined;
@@ -220,6 +224,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const next = [...inventory, ...cardIds].sort((a, b) => a - b);
     setInventory(next);
     if (user) syncToCloud({ inventory: next });
+  };
+
+  // Currency helpers. setGold/setGems alone only update local React state, which is then
+  // overwritten by the next Firestore snapshot on resync — so a "spent" amount silently
+  // re-appears after navigation. These helpers mirror the addCardsToInventory pattern:
+  // update local state AND persist to Firestore in one call.
+  const spendGold = (amount: number): boolean => {
+    if (amount <= 0) return true;
+    if (gold < amount) return false;
+    const next = gold - amount;
+    setGold(next);
+    if (user) syncToCloud({ gold: next });
+    return true;
+  };
+
+  const spendMerits = (amount: number): boolean => {
+    if (amount <= 0) return true;
+    if (gems < amount) return false;
+    const next = gems - amount;
+    setGems(next);
+    if (user) syncToCloud({ gems: next });
+    return true;
   };
 
   const addOwnedCosmetic = (cosmeticId: string) => {
@@ -407,7 +433,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [masterVolume]);
 
   const value: AppContextType = {
-    username, setUsername, gems, setGems, gold, setGold, inventory, addCardsToInventory, getCardById,
+    username, setUsername, gems, setGems, gold, setGold, spendGold, spendMerits, inventory, addCardsToInventory, getCardById,
     masterVolume, setMasterVolume, musicVolume, setMusicVolume, sfxVolume, setSfxVolume, isMuted, toggleMute,
     hasInteracted, setUserInteracted, isAnimationMode, setIsAnimationMode, ownedCosmetics, addOwnedCosmetic,
     equippedCosmetics, setEquippedCosmetic, savedDecks, saveDeck, updateDeck, deleteDeck,

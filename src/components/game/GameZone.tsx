@@ -91,6 +91,8 @@ const ZoneSlot = ({ card, onDropCard, type, position, owner, onCardClick, combat
       if (card && type === 'Unit') {
         if (item.type === 'Spell') return true;
         if (item.type === 'Relic' && owner === item.owner) return true;
+        // Allow dropping a new Unit onto your own Parasite token (id 999) — it sacrifices the Parasite and gains +1/+1.
+        if (item.type === 'Unit' && card.id === 999 && owner === item.owner) return true;
         return false;
       }
 
