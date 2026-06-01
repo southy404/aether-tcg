@@ -483,6 +483,7 @@ const es = {
     notEnoughGoldDescriptionMarket: 'Gana más oro en los duelos.',
     purchaseSuccess: '¡Compra realizada!',
     purchaseSuccessDescription: 'Has adquirido {name}.',
+    newCardBadge: '¡NUEVA!',
   },
   cosmetics: {
     avatar_0: 'Espíritu de Aether',

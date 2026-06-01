@@ -9,6 +9,7 @@ import { playSound } from '@/lib/audio';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
+import { useI18n } from '@/i18n';
 
 interface RevealingCardProps {
     card: CardData;
@@ -28,6 +29,7 @@ const CardBack = () => (
 );
 
 export default function RevealingCard({ card, onCardClick, onRevealed, flashRef, isBlocked, onAnimationStart, onAnimationEnd, initialInventory }: RevealingCardProps) {
+    const { t } = useI18n();
     const [animationState, setAnimationState] = useState<'idle' | 'shaking' | 'revealing' | 'revealed'>('idle');
     const containerRef = useRef<HTMLDivElement>(null);
     const auraRef = useRef<HTMLDivElement>(null);
@@ -151,7 +153,7 @@ export default function RevealingCard({ card, onCardClick, onRevealed, flashRef,
              {animationState === 'revealed' && (
                 <div className="absolute top-2 right-2 z-20">
                     {isNew ? (
-                    <Badge variant="default" className="bg-yellow-500 text-black shadow-lg">NEU!</Badge>
+                    <Badge variant="default" className="bg-yellow-500 text-black shadow-lg">{t('newCardBadge')}</Badge>
                     ) : (
                     <Badge variant="secondary" className="shadow-lg">x{ownedCount + 1}</Badge>
                     )}

@@ -483,6 +483,7 @@ const de = {
     notEnoughGoldDescriptionMarket: 'Verdiene mehr Gold in Duellen.',
     purchaseSuccess: 'Kauf erfolgreich!',
     purchaseSuccessDescription: 'Du hast {name} erworben.',
+    newCardBadge: 'NEU!',
   },
   cosmetics: {
     avatar_0: 'Aether Geist',
