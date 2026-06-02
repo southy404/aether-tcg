@@ -183,12 +183,12 @@ export default function PacksPage() {
                     <p className="text-xs text-white/70 mt-1">{t('containsCards', { count: PACK_SIZE })}</p>
                     <div className="flex flex-col items-center gap-1 mt-2">
                         <div className="flex items-center gap-2 text-sm font-bold text-yellow-500">
-                         <Image src="/coin.png" alt="Gold" width={16} height={16} />
+                          <Image src="/coin.png" alt="Gold" width={16} height={16} />
                           <span>{GOLD_COST} Gold</span>
                         </div>
                         <div className="text-xs text-muted-foreground">{t('or')}</div>
                         <div className="flex items-center gap-2 text-sm font-bold text-cyan-400">
-                         <Image src="/gem.png" alt="Merits" width={16} height={16} />
+                          <Image src="/gem.png" alt="Merits" width={16} height={16} />
                           <span>{MERIT_COST} Merits</span>
                         </div>
                         <Dialog>
