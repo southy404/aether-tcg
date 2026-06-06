@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/logo.png" alt="AETHER TCG Logo" width="140" />
+</p>
+
 # AETHER TCG: The Fifth Element
 
 AETHER TCG is a web-based trading card game with a dark fantasy aesthetic, animated cards, deck building, campaign mode, pack opening, PvP lobby, social features, shop systems, and Firebase integration. The project was exported from Firebase Studio and is structured as a Next.js app so it can be developed locally and outside Firebase Studio.

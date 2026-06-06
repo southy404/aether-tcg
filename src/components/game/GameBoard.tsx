@@ -1532,14 +1532,24 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
 
       const { pendingAction } = draft;
 
+      // The fullscreen card video is finished — always clear it.
+      draft.fullscreenCardAnimation = null;
+
       if (pendingAction.type === 'COMPLETE_CARD_PLAY') {
           if (completeCardPlay(draft, pendingAction.cardInstanceId, pendingAction.ownerId, pendingAction.target)) {
               if (isTutorial && onTutorialAction) {
                   onTutorialAction('SUCCESS');
               }
           }
+          draft.pendingAction = null;
       } else if (pendingAction.type === 'RESOLVE_TRAP') {
           applyTrapEffect(draft, pendingAction.trapCard, pendingAction.triggerSource);
+          // Clear the consumed RESOLVE_TRAP action BEFORE continueAfterResponse runs.
+          // continueAfterResponse may queue a fresh ADVANCE_PHASE action (+ combatAnimationState)
+          // to resolve the remaining attacks — if we cleared pendingAction *after* this call
+          // (as the old code did) we would wipe that follow-up and the turn would never advance,
+          // freezing the match after a combat trap resolves.
+          draft.pendingAction = null;
           continueAfterResponse(draft);
           if (isTutorial && onTutorialAction) {
               onTutorialAction('SUCCESS');
@@ -1558,10 +1568,10 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
          if (isTutorial && onTutorialAction) {
             onTutorialAction('SUCCESS');
         }
+        draft.pendingAction = null;
+      } else {
+        draft.pendingAction = null;
       }
-
-      draft.fullscreenCardAnimation = null;
-      draft.pendingAction = null;
     }));
   }, [setGameState, resolveCombat, advanceToNextPlayer, isTutorial, onTutorialAction, continueAfterResponse]);
 
