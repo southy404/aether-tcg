@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.png" alt="AETHER TCG Logo" width="140" />
+  <img src="public/logo.png" alt="AETHER TCG Logo" width="340" />
 </p>
 
 # AETHER TCG: The Fifth Element
