@@ -1343,7 +1343,94 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
        advanceToNextPlayer(draft);
     }
 }, [advanceToNextPlayer, isTutorial, onTutorialAction]);
-  
+
+  // AI defending logic. When the HUMAN (selfId) declares attacks, nextPhase flips the phase to
+  // 'declare-blockers' so the AI defender can respond — but nothing previously made the AI choose
+  // blockers or resolve combat, so the match froze forever at "AI can declare blockers".
+  // This picks blockers heuristically, then resolves combat and passes the turn.
+  const runAIBlockLogic = useCallback((draft: GameState) => {
+    if (draft.winner || draft.isPvp) return;
+    if (draft.phase !== 'declare-blockers' || draft.activePlayer !== selfId) return;
+
+    const defenderId = otherId; // the AI is defending against the human's attacks
+    const defender = draft.players[defenderId];
+
+    const unblockedAttacks = () => draft.combatState.attacks.filter(a => !a.blocker);
+    const incomingTotal = unblockedAttacks().reduce((sum, a) => sum + (a.attacker.card.currentAtk || 0), 0);
+    const facingLethal = incomingTotal >= defender.hp;
+
+    // Spend blockers on the biggest threats first.
+    const threats = unblockedAttacks().sort(
+      (a, b) => (b.attacker.card.currentAtk || 0) - (a.attacker.card.currentAtk || 0)
+    );
+
+    const usedBlockers = new Set<string>();
+
+    for (const attack of threats) {
+      const attackerCard = attack.attacker.card;
+      if ((attackerCard.currentAtk || 0) <= 0) continue;
+
+      const candidates = defender.unitZone
+        .map((unit, pos) => ({ unit, pos }))
+        .filter((c): c is { unit: GameCard; pos: number } =>
+          !!c.unit &&
+          (c.unit.currentHp || 0) > 0 &&
+          !c.unit.isFrozen &&
+          !c.unit.isEntangled &&
+          // Icebound Defender (25) can block any number of attackers; everyone else blocks once.
+          (c.unit.id === 25 || (!c.unit.isExhausted && !usedBlockers.has(c.unit.instanceId))) &&
+          // Stormrunner (67) cannot be blocked by units with cost 3 or less.
+          !(attackerCard.id === 67 && getUnitCost(c.unit) <= 3)
+        );
+
+      if (candidates.length === 0) continue;
+
+      const survivors = candidates.filter(c => (c.unit.currentHp || 0) > (attackerCard.currentAtk || 0));
+      const killers = candidates.filter(c => (c.unit.currentAtk || 0) >= (attackerCard.currentHp || 0));
+
+      let pick: { unit: GameCard; pos: number } | null = null;
+
+      const survivorKiller = survivors.find(c => (c.unit.currentAtk || 0) >= (attackerCard.currentHp || 0));
+      if (survivorKiller) {
+        pick = survivorKiller; // best case: survives the hit AND kills the attacker
+      } else if (survivors.length > 0) {
+        // Just survives: use the lowest-HP survivor to preserve bigger walls.
+        pick = [...survivors].sort((a, b) => (a.unit.currentHp || 0) - (b.unit.currentHp || 0))[0];
+      } else if (killers.length > 0 && (attackerCard.currentAtk || 0) >= 3) {
+        // Trade: a chump that dies but takes down a sizeable attacker.
+        pick = [...killers].sort((a, b) => (a.unit.currentHp || 0) - (b.unit.currentHp || 0))[0];
+      } else if (facingLethal) {
+        // Desperation chump block to avoid dying this turn.
+        pick = [...candidates].sort((a, b) => (a.unit.currentHp || 0) - (b.unit.currentHp || 0))[0];
+      }
+
+      if (!pick) continue;
+
+      attack.blocker = { playerId: defenderId, card: pick.unit, position: pick.pos };
+      pick.unit.hasBlockedThisTurn = true;
+      if (pick.unit.id !== 25) {
+        pick.unit.isExhausted = true;
+        usedBlockers.add(pick.unit.instanceId);
+      }
+      addLogAndToast(
+        draft,
+        [{ type: 'card', cardId: pick.unit.id, content: pick.unit.name }, ` blockiert nun `, { type: 'card', cardId: attackerCard.id, content: attackerCard.name }, `.`],
+        'info',
+        defenderId
+      );
+    }
+
+    // Now resolve combat and hand the turn back.
+    if (isAnimationMode && draft.combatState.attacks.length > 0) {
+      draft.pendingAction = { type: 'ADVANCE_PHASE', newPhase: 'end' };
+      draft.combatAnimationState = { attacks: draft.combatState.attacks };
+    } else {
+      resolveCombat(draft);
+      if (draft.winner) return;
+      advanceToNextPlayer(draft);
+    }
+  }, [selfId, otherId, isAnimationMode, resolveCombat, advanceToNextPlayer]);
+
  useEffect(() => {
     if (!gameState || gameState.winner || gameState.pendingAction || gameState.fullscreenCardAnimation || gameState.pendingResponse || gameState.combatAnimationState || gameState.multiTargetState) {
         return;
@@ -1491,6 +1578,9 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
                 runAILogic(draft);
             } else if (draft.activePlayer === 'opponent' && draft.phase === 'combat' && !draft.isPvp) {
                 endAITurnLogic(draft);
+            } else if (draft.activePlayer === selfId && draft.phase === 'declare-blockers' && !draft.isPvp) {
+                // Human attacked, AI must now choose blockers and resolve combat.
+                runAIBlockLogic(draft);
             }
         }));
     };
@@ -1503,7 +1593,7 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
     return () => {
         if(timeoutId) clearTimeout(timeoutId);
     };
-  }, [gameState, setGameState, startingPlayer, runAILogic, endAITurnLogic, continueAfterResponse, selfId]);
+  }, [gameState, setGameState, startingPlayer, runAILogic, endAITurnLogic, runAIBlockLogic, continueAfterResponse, selfId]);
   
   const onCombatAnimationEnd = useCallback(() => {
     setGameState(produce(draft => {
@@ -2332,9 +2422,12 @@ export default function GameBoard({ playerDeck, startingPlayer, onReset, isTutor
   const showEndTurnButton = useMemo(() => {
       if (!gameState) return false;
       const { activePlayer, winner, phase } = gameState;
-      if (isTutorial && phase === 'declare-blockers') return false;
+      // Hide the end-turn button while in the blocker-declaration phase. If the player is
+      // defending, the "Confirm blockers" button takes over; if the player is attacking, the
+      // AI is busy choosing blockers (there's nothing for the player to press).
+      if (phase === 'declare-blockers') return false;
       return activePlayer === selfId && !winner;
-  }, [gameState, isTutorial, selfId]);
+  }, [gameState, selfId]);
   
   const getEndTurnButtonText = (): string => {
     if (!gameState) return t('endTurn');
